@@ -134,8 +134,47 @@ function getConfirmDisconnectKeyboard() {
   };
 }
 
-// Store pending authentication data temporarily (in-memory, resets on function restart)
-const pendingAuth: Map<number, { email: string; attempts: number; step: "email" | "password" }> = new Map();
+// Store pending authentication data in database (persistent across function restarts)
+async function getPendingAuth(chatId: number) {
+  const { data } = await supabase
+    .from("telegram_links")
+    .select("verification_code")
+    .eq("telegram_chat_id", chatId)
+    .eq("verified", false)
+    .maybeSingle();
+  
+  if (data && data.verification_code) {
+    try {
+      return JSON.parse(data.verification_code);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function setPendingAuth(chatId: number, authData: { email: string; attempts: number; step: "email" | "password" } | null) {
+  if (authData) {
+    await supabase
+      .from("telegram_links")
+      .upsert({
+        telegram_chat_id: chatId,
+        verified: false,
+        verification_code: JSON.stringify(authData),
+        user_id: null, // Will be set when verified
+      });
+  } else {
+    await supabase
+      .from("telegram_links")
+      .delete()
+      .eq("telegram_chat_id", chatId)
+      .eq("verified", false);
+  }
+}
+
+async function clearPendingAuth(chatId: number) {
+  await setPendingAuth(chatId, null);
+}
 
 // Validate email format strictly
 function isValidEmail(email: string): boolean {
@@ -171,8 +210,6 @@ async function saveUserState(chatId: number, userId: string, stateData: Record<s
 }
 
 async function handleStart(chatId: number) {
-  pendingAuth.delete(chatId);
-  
   // Check if already verified
   const existingLink = await getUserLink(chatId);
   if (existingLink) {
@@ -195,8 +232,9 @@ Your account is already connected.
     return;
   }
   
-  // Set initial auth state - waiting for email
-  pendingAuth.set(chatId, { email: "", attempts: 0, step: "email" });
+  // Clear any existing pending auth and set initial auth state - waiting for email
+  await clearPendingAuth(chatId);
+  await setPendingAuth(chatId, { email: "", attempts: 0, step: "email" });
   
   await sendTelegramMessage(chatId, `
 🎉 <b>Welcome to Finance Manager Bot!</b>
@@ -212,6 +250,18 @@ I help you record financial transactions directly from Telegram.
 }
 
 async function handleEmailStep(chatId: number, email: string, username?: string) {
+  const pending = await getPendingAuth(chatId);
+  
+  if (!pending || pending.step !== "email") {
+    await sendTelegramMessage(chatId, `
+❌ Session expired. Please start again.
+
+Send /start to begin.
+    `);
+    await clearPendingAuth(chatId);
+    return;
+  }
+  
   // Validate email format first
   if (!isValidEmail(email)) {
     await sendTelegramMessage(chatId, `
@@ -271,11 +321,12 @@ To use this device instead:
 
 Or send /start to try with a different email.
     `);
+    await clearPendingAuth(chatId);
     return;
   }
 
   // Store email and request password
-  pendingAuth.set(chatId, { email: email.trim(), attempts: 0, step: "password" });
+  await setPendingAuth(chatId, { email: email.trim(), attempts: 0, step: "password" });
   
   await sendTelegramMessage(chatId, `
 ✅ <b>Email verified!</b>
@@ -289,7 +340,7 @@ Or send /start to try with a different email.
 }
 
 async function handlePasswordStep(chatId: number, password: string, username?: string) {
-  const pending = pendingAuth.get(chatId);
+  const pending = await getPendingAuth(chatId);
   
   if (!pending || pending.step !== "password") {
     await sendTelegramMessage(chatId, `
@@ -297,13 +348,14 @@ async function handlePasswordStep(chatId: number, password: string, username?: s
 
 Send /start to begin.
     `);
+    await clearPendingAuth(chatId);
     return;
   }
 
   pending.attempts++;
   
   if (pending.attempts > 3) {
-    pendingAuth.delete(chatId);
+    await clearPendingAuth(chatId);
     await sendTelegramMessage(chatId, `
 🚫 <b>Too many failed attempts!</b>
 
@@ -323,6 +375,7 @@ Send /start to restart.
   if (authError || !authData.user) {
     console.log("Auth error:", authError);
     const remainingAttempts = 3 - pending.attempts;
+    await setPendingAuth(chatId, { ...pending, attempts: pending.attempts });
     await sendTelegramMessage(chatId, `
 ❌ <b>Invalid password!</b>
 
@@ -345,7 +398,7 @@ Please enter your correct password:
 
   if (!profile) {
     await sendTelegramMessage(chatId, "❌ Profile not found. Please try again.");
-    pendingAuth.delete(chatId);
+    await clearPendingAuth(chatId);
     return;
   }
 
@@ -369,11 +422,11 @@ Please enter your correct password:
   if (linkError) {
     console.error("Link error:", linkError);
     await sendTelegramMessage(chatId, "❌ Error linking account. Please try again.");
-    pendingAuth.delete(chatId);
+    await clearPendingAuth(chatId);
     return;
   }
 
-  pendingAuth.delete(chatId);
+  await clearPendingAuth(chatId);
   const name = profile.first_name || profile.email.split("@")[0];
 
   await sendTelegramMessage(chatId, `
@@ -703,7 +756,7 @@ serve(async (req) => {
     
     if (!link) {
       // Check if we have pending auth
-      const pending = pendingAuth.get(chatId);
+      const pending = await getPendingAuth(chatId);
       
       if (pending) {
         if (pending.step === "password") {

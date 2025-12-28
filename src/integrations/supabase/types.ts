@@ -397,7 +397,7 @@ export type Database = {
           telegram_chat_id: number
           telegram_username: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
           verification_code: string | null
           verified: boolean
         }
@@ -407,7 +407,7 @@ export type Database = {
           telegram_chat_id: number
           telegram_username?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           verification_code?: string | null
           verified?: boolean
         }
@@ -417,7 +417,7 @@ export type Database = {
           telegram_chat_id?: number
           telegram_username?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           verification_code?: string | null
           verified?: boolean
         }
