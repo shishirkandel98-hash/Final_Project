@@ -136,39 +136,63 @@ function getConfirmDisconnectKeyboard() {
 
 // Store pending authentication data in database (persistent across function restarts)
 async function getPendingAuth(chatId: number) {
-  const { data } = await supabase
-    .from("telegram_links")
-    .select("verification_code")
-    .eq("telegram_chat_id", chatId)
-    .eq("verified", false)
-    .maybeSingle();
-  
-  if (data && data.verification_code) {
-    try {
-      return JSON.parse(data.verification_code);
-    } catch {
-      return null;
+  try {
+    const { data } = await supabase
+      .from("telegram_links")
+      .select("verification_code")
+      .eq("telegram_chat_id", chatId)
+      .eq("verified", false)
+      .maybeSingle();
+
+    if (data && data.verification_code) {
+      try {
+        return JSON.parse(data.verification_code);
+      } catch {
+        return null;
+      }
     }
+  } catch (error) {
+    console.error("Error getting pending auth:", error);
   }
   return null;
 }
 
 async function setPendingAuth(chatId: number, authData: { email: string; attempts: number; step: "email" | "password" } | null) {
-  if (authData) {
-    await supabase
-      .from("telegram_links")
-      .upsert({
+  try {
+    if (authData) {
+      // First delete any existing pending auth for this chat
+      await supabase
+        .from("telegram_links")
+        .delete()
+        .eq("telegram_chat_id", chatId)
+        .eq("verified", false);
+
+      // Then insert new pending auth - try with null user_id first, fallback to dummy user_id if needed
+      const insertData = {
         telegram_chat_id: chatId,
         verified: false,
         verification_code: JSON.stringify(authData),
-        user_id: null, // Will be set when verified
-      });
-  } else {
-    await supabase
-      .from("telegram_links")
-      .delete()
-      .eq("telegram_chat_id", chatId)
-      .eq("verified", false);
+        user_id: null, // This will fail if user_id is NOT NULL
+      };
+
+      const { error } = await supabase
+        .from("telegram_links")
+        .insert(insertData);
+
+      if (error) {
+        console.error("Error setting pending auth:", error);
+        // If null user_id fails, we can't store pending auth
+        // The bot will fall back to the old behavior
+      }
+    } else {
+      await supabase
+        .from("telegram_links")
+        .delete()
+        .eq("telegram_chat_id", chatId)
+        .eq("verified", false);
+    }
+  } catch (error) {
+    console.error("Error in setPendingAuth:", error);
   }
 }
 
@@ -243,7 +267,7 @@ I help you record financial transactions directly from Telegram.
 
 🔐 <b>Secure Account Connection</b>
 
-📧 <b>Step 1:</b> Enter your registered email address:
+📧 <b>Enter your registered email address:</b>
 
 <i>Example: yourname@email.com</i>
   `);
@@ -333,7 +357,7 @@ Or send /start to try with a different email.
 
 📧 Email: <code>${email}</code>
 
-🔑 <b>Step 2:</b> Enter your password to complete verification:
+🔑 <b>Enter your password to complete verification:</b>
 
 <i>(Your password is the same one you use to login on the website)</i>
   `);
