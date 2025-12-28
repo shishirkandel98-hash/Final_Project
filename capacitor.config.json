@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.62c4645d29ba4956ab45a99a5cdcc47b",
+  "appName": "shishirkandel",
+  "webDir": "dist",
+  "server": {
+    "url": "https://62c4645d-29ba-4956-ab45-a99a5cdcc47b.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
