@@ -582,6 +582,15 @@ const RemindersPanel = () => {
                 />
               </div>
               <div>
+                <Label htmlFor="edit-subject">Email Subject</Label>
+                <Input
+                  id="edit-subject"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  placeholder="Email subject line"
+                />
+              </div>
+              <div>
                 <Label htmlFor="edit-message">Message</Label>
                 <Textarea
                   id="edit-message"
@@ -589,6 +598,16 @@ const RemindersPanel = () => {
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   placeholder="Reminder message"
                   rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email Address</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.reminder_email}
+                  onChange={(e) => setFormData({ ...formData, reminder_email: e.target.value })}
+                  placeholder="email@example.com"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">

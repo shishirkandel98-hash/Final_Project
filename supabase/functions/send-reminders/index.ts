@@ -15,7 +15,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sendReminderEmail(email: string, title: string, message: string): Promise<boolean> {
+async function sendReminderEmail(email: string, title: string, message: string, reminderDate: string, subject?: string): Promise<boolean> {
   try {
     const client = new SMTPClient({
       connection: {
@@ -29,17 +29,30 @@ async function sendReminderEmail(email: string, title: string, message: string):
       },
     });
 
+    const formattedDate = new Date(reminderDate).toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+
+    const emailSubject = subject ? `${subject} - ${title}` : `📅 ${title}`;
+
     await client.send({
       from: `"Finance Manager" <${GMAIL_USER}>`,
       to: email,
-      subject: `📅 ${title}`,
+      subject: emailSubject,
       content: `Hi there,
 
 Here's your scheduled reminder:
 
 📝 ${message}
 
-⏰ Reminder set for: ${new Date().toLocaleString()}
+⏰ Reminder set for: ${formattedDate}
+📅 Date & Time: ${new Date(reminderDate).toLocaleString()}
 
 This is an automated message from your Finance Manager application.
 Please do not reply to this email.
@@ -51,6 +64,12 @@ Finance Manager Team
         "X-Mailer": "Finance Manager Reminder System",
         "X-Priority": "1",
         "Importance": "high",
+        "Return-Path": GMAIL_USER,
+        "List-Unsubscribe": `<mailto:${GMAIL_USER}?subject=unsubscribe>`,
+        "Precedence": "bulk",
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "OOF, DR, RN, NRN, AutoReply",
+        "X-Finance-Manager": "Reminder-Service",
       },
     });
 
@@ -74,6 +93,7 @@ async function processReminders() {
         id,
         user_id,
         title,
+        subject,
         message,
         reminder_date,
         reminder_email,
@@ -101,7 +121,7 @@ async function processReminders() {
         const userEmail = reminder.reminder_email || reminder.profiles.email;
 
         // Send the email
-        const emailSent = await sendReminderEmail(userEmail, reminder.title, reminder.message);
+        const emailSent = await sendReminderEmail(userEmail, reminder.title, reminder.message, reminder.reminder_date, reminder.subject);
 
         if (emailSent) {
           // Update the reminder
