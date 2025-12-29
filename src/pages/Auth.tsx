@@ -383,7 +383,7 @@ const Auth = () => {
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      <div className="p-2">
+                      <div className="p-2 sticky top-0 bg-popover z-10">
                         <Input
                           placeholder="Search currencies..."
                           value={currencySearch}

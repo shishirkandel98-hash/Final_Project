@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { ArrowLeft, User, Save, Loader2, Monitor, Globe, Key, Mail, Eye, EyeOff } from "lucide-react";
 import { isValidEmail, isValidPhone, isValidName } from "@/lib/validation";
 import { format } from "date-fns";
+import { CURRENCIES } from "@/lib/constants";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserSession {
   id: string;
@@ -33,6 +35,8 @@ export default function Profile() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
+  const [currency, setCurrency] = useState("NPR");
+  const [currencySearch, setCurrencySearch] = useState("");
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -78,7 +82,7 @@ export default function Profile() {
       .maybeSingle();
     const adminStatus = !!data;
     setIsAdmin(adminStatus);
-    
+
     // If admin, fetch Gmail settings
     if (adminStatus) {
       await fetchGmailSettings();
@@ -171,6 +175,7 @@ export default function Profile() {
       setEmail(data.email || "");
       setPhone(data.phone || "");
       setCountry(data.country || "");
+      setCurrency(data.currency || "NPR");
     }
   };
 
@@ -239,6 +244,7 @@ export default function Profile() {
           last_name: lastName.trim(),
           phone: phone.trim(),
           country: country.trim(),
+          currency: currency,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -402,6 +408,39 @@ export default function Profile() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <div className="p-2 sticky top-0 bg-popover z-10">
+                    <Input
+                      placeholder="Search currencies..."
+                      value={currencySearch}
+                      onChange={(e) => setCurrencySearch(e.target.value)}
+                      className="mb-2"
+                    />
+                  </div>
+                  {CURRENCIES
+                    .filter(c =>
+                      c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+                      c.name.toLowerCase().includes(currencySearch.toLowerCase())
+                    )
+                    .sort((a, b) => a.code.localeCompare(b.code))
+                    .map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="flex items-center gap-2">
+                          <span>{c.code}</span>
+                          <span className="text-muted-foreground">- {c.name} ({c.symbol})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Save Changes
@@ -439,9 +478,9 @@ export default function Profile() {
                 placeholder="Confirm new password"
               />
             </div>
-            <Button 
-              onClick={handlePasswordChange} 
-              disabled={changingPassword || !newPassword || !confirmPassword} 
+            <Button
+              onClick={handlePasswordChange}
+              disabled={changingPassword || !newPassword || !confirmPassword}
               className="w-full"
             >
               {changingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Key className="w-4 h-4 mr-2" />}
@@ -499,9 +538,9 @@ export default function Profile() {
                   Generate an App Password from your Google Account settings
                 </p>
               </div>
-              <Button 
-                onClick={handleSaveGmailSettings} 
-                disabled={savingGmail || !gmailUser} 
+              <Button
+                onClick={handleSaveGmailSettings}
+                disabled={savingGmail || !gmailUser}
                 className="w-full"
               >
                 {savingGmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
