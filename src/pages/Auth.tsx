@@ -27,10 +27,9 @@ const Auth = () => {
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
   const [currency, setCurrency] = useState("NPR");
+  const [currencySearch, setCurrencySearch] = useState("");
   const [countrySearch, setCountrySearch] = useState("");
   const [clientIP, setClientIP] = useState("unknown");
-  const [rateLimited, setRateLimited] = useState(false);
-  const [cooldownTime, setCooldownTime] = useState(0);
 
   // Validation error states
   const [emailError, setEmailError] = useState("");
@@ -74,16 +73,6 @@ const Auth = () => {
   useEffect(() => {
     getClientIP().then(setClientIP);
   }, []);
-
-  // Cooldown timer
-  useEffect(() => {
-    if (cooldownTime > 0) {
-      const timer = setTimeout(() => setCooldownTime(cooldownTime - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (cooldownTime === 0 && rateLimited) {
-      setRateLimited(false);
-    }
-  }, [cooldownTime, rateLimited]);
 
   const validateForm = (): boolean => {
     let isValid = true;
@@ -136,26 +125,9 @@ const Auth = () => {
       return;
     }
 
-    if (rateLimited) {
-      toast.error(`Too many attempts. Please wait ${cooldownTime} seconds`);
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Check rate limit first
-      const { data: canProceed, error: rateLimitError } = await supabase
-        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 20 });
-
-      if (rateLimitError || !canProceed) {
-        setRateLimited(true);
-        setCooldownTime(42);
-        toast.error("Too many login attempts. Please wait 42 seconds before trying again.");
-        setLoading(false);
-        return;
-      }
-
       // Attempt sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -213,26 +185,9 @@ const Auth = () => {
       return;
     }
 
-    if (rateLimited) {
-      toast.error(`Too many attempts. Please wait ${cooldownTime} seconds before trying again`);
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Check rate limit for signups too
-      const { data: canProceed } = await supabase
-        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 20 });
-
-      if (!canProceed) {
-        setRateLimited(true);
-        setCooldownTime(42);
-        toast.error("Too many attempts. Please wait 42 seconds before trying again.");
-        setLoading(false);
-        return;
-      }
-
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -428,14 +383,28 @@ const Auth = () => {
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      {CURRENCIES.sort((a, b) => a.code.localeCompare(b.code)).map((c) => (
-                        <SelectItem key={c.code} value={c.code}>
-                          <span className="flex items-center gap-2">
-                            <span>{c.code}</span>
-                            <span className="text-muted-foreground">- {c.name} ({c.symbol})</span>
-                          </span>
-                        </SelectItem>
-                      ))}
+                      <div className="p-2">
+                        <Input
+                          placeholder="Search currencies..."
+                          value={currencySearch}
+                          onChange={(e) => setCurrencySearch(e.target.value)}
+                          className="mb-2"
+                        />
+                      </div>
+                      {CURRENCIES
+                        .filter(c =>
+                          c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+                          c.name.toLowerCase().includes(currencySearch.toLowerCase())
+                        )
+                        .sort((a, b) => a.code.localeCompare(b.code))
+                        .map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            <span className="flex items-center gap-2">
+                              <span>{c.code}</span>
+                              <span className="text-muted-foreground">- {c.name} ({c.symbol})</span>
+                            </span>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
