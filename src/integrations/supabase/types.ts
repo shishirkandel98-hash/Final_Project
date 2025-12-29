@@ -431,6 +431,30 @@ export type Database = {
           },
         ]
       }
+      telegram_pending_auth: {
+        Row: {
+          auth_data: Json
+          created_at: string
+          expires_at: string
+          id: string
+          telegram_chat_id: number
+        }
+        Insert: {
+          auth_data?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          telegram_chat_id: number
+        }
+        Update: {
+          auth_data?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          telegram_chat_id?: number
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -637,6 +661,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_expired_telegram_auth: { Args: never; Returns: undefined }
       cleanup_old_login_attempts: { Args: never; Returns: undefined }
       has_role: {
         Args: {

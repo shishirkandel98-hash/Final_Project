@@ -134,7 +134,7 @@ function getConfirmDisconnectKeyboard() {
   };
 }
 
-// Store pending authentication in database to persist across function restarts
+// Store pending authentication in a dedicated table (no foreign key constraints)
 interface PendingAuth {
   email: string;
   attempts: number;
@@ -143,62 +143,53 @@ interface PendingAuth {
 }
 
 async function getPendingAuth(chatId: number): Promise<PendingAuth | null> {
-  const { data } = await supabase
-    .from("telegram_links")
-    .select("verification_code")
+  const { data, error } = await supabase
+    .from("telegram_pending_auth")
+    .select("auth_data, expires_at")
     .eq("telegram_chat_id", chatId)
-    .eq("verified", false)
     .maybeSingle();
   
-  if (!data?.verification_code) return null;
-  
-  try {
-    const parsed = JSON.parse(data.verification_code);
-    // Check if auth session is still valid (expires after 10 minutes)
-    if (parsed.timestamp && Date.now() - parsed.timestamp > 10 * 60 * 1000) {
-      await clearPendingAuth(chatId);
-      return null;
-    }
-    return parsed as PendingAuth;
-  } catch {
+  if (error) {
+    console.error("Error getting pending auth:", error);
     return null;
   }
+  
+  if (!data?.auth_data) return null;
+  
+  // Check if expired
+  if (new Date(data.expires_at) < new Date()) {
+    await clearPendingAuth(chatId);
+    return null;
+  }
+  
+  return data.auth_data as PendingAuth;
 }
 
 async function setPendingAuth(chatId: number, auth: PendingAuth): Promise<void> {
-  // First check if there's already a pending auth record
-  const { data: existing } = await supabase
-    .from("telegram_links")
-    .select("id")
-    .eq("telegram_chat_id", chatId)
-    .eq("verified", false)
-    .maybeSingle();
+  const { error } = await supabase
+    .from("telegram_pending_auth")
+    .upsert({
+      telegram_chat_id: chatId,
+      auth_data: auth,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
+    }, {
+      onConflict: "telegram_chat_id"
+    });
   
-  if (existing) {
-    await supabase
-      .from("telegram_links")
-      .update({ verification_code: JSON.stringify(auth) })
-      .eq("telegram_chat_id", chatId)
-      .eq("verified", false);
-  } else {
-    // Create a temporary unverified link to store auth state
-    await supabase
-      .from("telegram_links")
-      .insert({
-        telegram_chat_id: chatId,
-        user_id: "00000000-0000-0000-0000-000000000000", // Placeholder, will be updated on success
-        verified: false,
-        verification_code: JSON.stringify(auth),
-      });
+  if (error) {
+    console.error("Error setting pending auth:", error);
   }
 }
 
 async function clearPendingAuth(chatId: number): Promise<void> {
-  await supabase
-    .from("telegram_links")
+  const { error } = await supabase
+    .from("telegram_pending_auth")
     .delete()
-    .eq("telegram_chat_id", chatId)
-    .eq("verified", false);
+    .eq("telegram_chat_id", chatId);
+  
+  if (error) {
+    console.error("Error clearing pending auth:", error);
+  }
 }
 
 // Validate email format strictly
