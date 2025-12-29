@@ -243,21 +243,31 @@ const Auth = () => {
     e.preventDefault();
     if (!resetEmail) return;
 
+    // Basic email validation
+    const emailValidation = isValidEmail(resetEmail);
+    if (!emailValidation.valid) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
     setResetLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-reset-password`, {
+      // For password reset, we don't need authentication - it's public
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ email: resetEmail }),
+        body: JSON.stringify({
+          action: 'reset_password_by_email',
+          email: resetEmail.trim().toLowerCase()
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("Password reset! Check your email for the new password.");
+        toast.success(data.message || "Password reset! Check your email for the new password.");
         setShowResetDialog(false);
         setResetEmail("");
       } else {

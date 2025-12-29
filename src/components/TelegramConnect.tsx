@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Check, ExternalLink, Loader2, Unlink } from "lucide-react";
+import { MessageCircle, Check, ExternalLink, Loader2, Unlink, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface TelegramConnectProps {
@@ -19,6 +19,8 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [verificationCode, setVerificationCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
 
   useEffect(() => {
     checkTelegramConnection();
@@ -28,7 +30,7 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
     try {
       const { data, error } = await supabase
         .from("telegram_links")
-        .select("telegram_username, verified")
+        .select("telegram_username, verified, verification_code")
         .eq("user_id", userId)
         .eq("verified", true)
         .maybeSingle();
@@ -36,9 +38,19 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
       if (data && !error) {
         setIsConnected(true);
         setTelegramUsername(data.telegram_username);
+        setVerificationCode(null);
       } else {
         setIsConnected(false);
         setTelegramUsername(null);
+        // Check if there's a pending verification code
+        const { data: pendingData } = await supabase
+          .from("telegram_links")
+          .select("verification_code")
+          .eq("user_id", userId)
+          .eq("verified", false)
+          .maybeSingle();
+
+        setVerificationCode(pendingData?.verification_code || null);
       }
     } catch (error) {
       console.error("Error checking Telegram connection:", error);
@@ -68,8 +80,47 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
     }
   };
 
-  const openTelegramBot = () => {
-    window.open("https://t.me/FinanceManagerRecordbot", "_blank");
+  const generateVerificationCode = async () => {
+    setGeneratingCode(true);
+    try {
+      // Generate a random 6-digit code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Remove any existing unverified links for this user
+      await supabase
+        .from("telegram_links")
+        .delete()
+        .eq("user_id", userId)
+        .eq("verified", false);
+
+      // Insert new verification code
+      const { error } = await supabase
+        .from("telegram_links")
+        .insert({
+          user_id: userId,
+          verification_code: code,
+          verified: false,
+        });
+
+      if (error) throw error;
+
+      setVerificationCode(code);
+      toast.success("Verification code generated! Copy it and paste in Telegram.");
+    } catch (error: any) {
+      console.error("Error generating verification code:", error);
+      toast.error("Failed to generate verification code");
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Code copied to clipboard!");
+    } catch (error) {
+      toast.error("Failed to copy code");
+    }
   };
 
   if (loading) {
@@ -182,7 +233,55 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">1</div>
-              <p className="text-sm">Open our Telegram bot</p>
+              <p className="text-sm">Generate your verification code</p>
+            </div>
+            {!verificationCode ? (
+              <Button onClick={generateVerificationCode} className="w-full" disabled={generatingCode}>
+                {generatingCode ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Generate Code
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <div className="bg-background border rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Your verification code:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-lg font-mono font-bold text-primary bg-muted px-2 py-1 rounded">
+                      {verificationCode}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(verificationCode)}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={generateVerificationCode}
+                  disabled={generatingCode}
+                >
+                  {generatingCode ? (
+                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3 mr-2" />
+                  )}
+                  Generate New Code
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">2</div>
+              <p className="text-sm">Open our Telegram bot and enter the code</p>
             </div>
             <Button onClick={openTelegramBot} className="w-full" variant="outline">
               <ExternalLink className="w-4 h-4 mr-2" />
@@ -192,18 +291,11 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
 
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">2</div>
-              <p className="text-sm">Click "Start" and enter your registered email</p>
-            </div>
-          </div>
-
-          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">3</div>
-              <p className="text-sm">Enter your password to verify</p>
+              <p className="text-sm">Paste your verification code in Telegram</p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Use the same password you use to login on the website
+              The bot will verify the code and connect your account
             </p>
           </div>
 

@@ -32,6 +32,7 @@ interface Transaction {
   remarks: string | null;
   image_url: string | null;
   transaction_date: string;
+  telegram_source?: boolean;
 }
 
 interface Loan {
@@ -138,7 +139,7 @@ const Admin = () => {
     setLoadingUserData(true);
     try {
       const [txResult, loanResult, bankResult, sessionResult] = await Promise.all([
-        supabase.from("transactions").select("*").eq("user_id", userId).order("transaction_date", { ascending: false }),
+        supabase.from("transactions").select("*").eq("user_id", userId).eq("telegram_source", false).order("transaction_date", { ascending: false }),
         supabase.from("loans").select("*").eq("user_id", userId).order("loan_date", { ascending: false }),
         supabase.from("bank_accounts").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
         supabase.from("user_sessions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),

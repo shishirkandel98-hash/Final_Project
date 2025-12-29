@@ -17,6 +17,7 @@ import { format } from "date-fns";
 
 interface ReminderFormData {
   title: string;
+  subject: string;
   message: string;
   reminder_email: string;
   reminder_date: string;
@@ -56,6 +57,7 @@ const RemindersPanel = () => {
   const resetForm = () => {
     setFormData({
       title: "",
+      subject: "",
       message: "",
       reminder_email: user?.email || "",
       reminder_date: "",
@@ -74,6 +76,10 @@ const RemindersPanel = () => {
     // Validate required fields
     if (!formData.title.trim()) {
       toast.error("Please enter a reminder title");
+      return;
+    }
+    if (!formData.subject.trim()) {
+      toast.error("Please enter an email subject");
       return;
     }
     if (!formData.message.trim()) {
@@ -157,6 +163,7 @@ const RemindersPanel = () => {
       await createReminder.mutateAsync({
         user_id: user.id,
         title: formData.title.trim(),
+        subject: formData.subject.trim(),
         message: formData.message.trim(),
         reminder_email: formData.reminder_email.trim(),
         reminder_date: reminderDateTime.toISOString(),
@@ -183,6 +190,10 @@ const RemindersPanel = () => {
     // Validate required fields
     if (!formData.title.trim()) {
       toast.error("Please enter a reminder title");
+      return;
+    }
+    if (!formData.subject.trim()) {
+      toast.error("Please enter an email subject");
       return;
     }
     if (!formData.message.trim()) {
@@ -215,6 +226,7 @@ const RemindersPanel = () => {
       await updateReminder.mutateAsync({
         id: editingReminder.id,
         title: formData.title.trim(),
+        subject: formData.subject.trim(),
         message: formData.message.trim(),
         reminder_email: formData.reminder_email.trim(),
         reminder_date: reminderDateTime.toISOString(),
@@ -238,6 +250,7 @@ const RemindersPanel = () => {
     const reminderDate = new Date(reminder.reminder_date);
     setFormData({
       title: reminder.title,
+      subject: reminder.subject || "",
       message: reminder.message,
       reminder_email: reminder.reminder_email || user?.email || "",
       reminder_date: reminderDate.toISOString().split('T')[0],
@@ -337,6 +350,15 @@ const RemindersPanel = () => {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="Reminder title"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="subject">Email Subject</Label>
+                  <Input
+                    id="subject"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    placeholder="Email subject line"
                   />
                 </div>
                 <div>

@@ -136,9 +136,10 @@ function getConfirmDisconnectKeyboard() {
 
 // Store pending authentication in a dedicated table (no foreign key constraints)
 interface PendingAuth {
-  email: string;
+  email?: string;
+  code?: string;
   attempts: number;
-  step: "email" | "password";
+  step: "email" | "password" | "code";
   timestamp: number;
 }
 
@@ -321,8 +322,8 @@ Your account is already connected.
     return;
   }
 
-  // Set initial auth state - waiting for email (persist in database)
-  await setPendingAuth(chatId, { email: "", attempts: 0, step: "email", timestamp: Date.now() });
+  // Set initial auth state - waiting for verification code (persist in database)
+  await setPendingAuth(chatId, { code: "", attempts: 0, step: "code", timestamp: Date.now() });
 
   await sendTelegramMessage(chatId, `
 🎉 <b>Welcome to Finance Manager Bot!</b>
@@ -331,10 +332,143 @@ I help you record financial transactions directly from Telegram.
 
 🔐 <b>Secure Account Connection</b>
 
-📧 <b>Step 1:</b> Enter your registered email address:
+🔑 <b>Step 1:</b> Enter your verification code from the website:
 
-<i>Example: yourname@email.com</i>
+<i>Get your code from Finance Manager Dashboard → Profile → Telegram Connect</i>
   `);
+}
+
+async function handleCodeStep(chatId: number, code: string, username?: string) {
+  const pending = await getPendingAuth(chatId);
+
+  if (!pending || pending.step !== "code") {
+    await sendTelegramMessage(chatId, `
+❌ Session expired. Please start again.
+
+Send /start to begin.
+    `);
+    return;
+  }
+
+  pending.attempts++;
+
+  if (pending.attempts > 5) {
+    await clearPendingAuth(chatId);
+    await sendTelegramMessage(chatId, `
+🚫 <b>Too many failed attempts!</b>
+
+For security, please wait a few minutes before trying again.
+
+Send /start to restart.
+    `);
+    return;
+  }
+
+  // Update attempts in database
+  await setPendingAuth(chatId, pending);
+
+  // Verify code
+  const normalizedCode = code.trim();
+
+  // Find the verification code in telegram_links table
+  const { data: linkData, error } = await supabase
+    .from("telegram_links")
+    .select("user_id, verification_code")
+    .eq("verification_code", normalizedCode)
+    .eq("verified", false)
+    .maybeSingle();
+
+  if (error || !linkData) {
+    const remainingAttempts = 5 - pending.attempts;
+    await sendTelegramMessage(chatId, `
+❌ <b>Invalid verification code!</b>
+
+${remainingAttempts > 0 ? `You have <b>${remainingAttempts}</b> attempt(s) remaining.` : "No attempts remaining."}
+
+Please enter the correct 6-digit code from your Finance Manager dashboard:
+    `);
+    return;
+  }
+
+  // Get user profile
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, first_name, email, approved")
+    .eq("id", linkData.user_id)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    await sendTelegramMessage(chatId, `❌ Profile not found. Please try again.`);
+    await clearPendingAuth(chatId);
+    return;
+  }
+
+  if (!profile.approved) {
+    await sendTelegramMessage(chatId, `❌ Account not approved. Please contact administrator.`);
+    await clearPendingAuth(chatId);
+    return;
+  }
+
+  // Check if this user already has a Telegram connected on another device
+  const { data: existingLink } = await supabase
+    .from("telegram_links")
+    .select("telegram_chat_id, verified")
+    .eq("user_id", profile.id)
+    .eq("verified", true)
+    .maybeSingle();
+
+  if (existingLink && existingLink.telegram_chat_id !== chatId) {
+    await sendTelegramMessage(chatId, `
+⚠️ <b>Account Already Connected!</b>
+
+This account is already connected to another Telegram device.
+
+Only <b>one device</b> can be connected at a time.
+
+To use this device instead:
+1. Go to the Finance Manager website
+2. Disconnect your Telegram from the Profile page
+3. Generate a new verification code and try again
+
+Or send /start to try with a different code.
+    `);
+    await clearPendingAuth(chatId);
+    return;
+  }
+
+  // Clear pending auth
+  await clearPendingAuth(chatId);
+
+  // Update the telegram link to verified
+  const { error: updateError } = await supabase
+    .from("telegram_links")
+    .update({
+      telegram_chat_id: chatId,
+      telegram_username: username || null,
+      verified: true,
+      verification_code: null, // Clear the code after use
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", profile.id)
+    .eq("verification_code", cleanCode);
+
+  if (updateError) {
+    console.error("Error updating telegram link:", updateError);
+    await sendTelegramMessage(chatId, `❌ Failed to connect account. Please try again.`);
+    return;
+  }
+
+  const name = profile.first_name || profile.email.split("@")[0];
+
+  await sendTelegramMessage(chatId, `
+✅ <b>Account Connected Successfully!</b>
+
+Welcome, <b>${name}</b>! 🎉
+
+You can now record transactions directly from Telegram.
+
+<b>Choose an option below:</b>
+  `, { reply_markup: getMainMenuKeyboard() });
 }
 
 async function handleEmailStep(chatId: number, email: string, username?: string) {
@@ -642,6 +776,7 @@ async function saveTransaction(
     transaction_date: new Date().toISOString().split("T")[0],
     bank_account_id: bankAccountId || null,
     image_url: imageUrl || null,
+    telegram_source: true,
   });
 
   if (error) {
@@ -804,11 +939,14 @@ serve(async (req) => {
       const pending = await getPendingAuth(chatId);
 
       if (pending) {
-        if (pending.step === "password") {
-          // User is entering password
+        if (pending.step === "code") {
+          // User is entering verification code
+          await handleCodeStep(chatId, text, username);
+        } else if (pending.step === "password") {
+          // Legacy support - user is entering password
           await handlePasswordStep(chatId, text, username);
         } else if (pending.step === "email") {
-          // User is entering email - validate it first
+          // Legacy support - user is entering email
           await handleEmailStep(chatId, text, username);
         }
       } else {

@@ -42,6 +42,7 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   // Admin Gmail settings
   const [gmailUser, setGmailUser] = useState("kpoliking001@gmail.com");
@@ -139,9 +140,8 @@ export default function Profile() {
 
       // BYPASS: Function not deployed, but credentials are hardcoded in the codebase.
       // We simulate success to allow the UI to proceed without error.
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Fake network delay
+      // await new Promise(resolve => setTimeout(resolve, 1000)); // Fake network delay
 
-      /* 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-gmail-settings`,
         {
@@ -157,22 +157,21 @@ export default function Profile() {
           }),
         }
       );
-  
+
       const data = await response.json();
-  
+
       if (response.ok) {
-        toast.success("Gmail settings update requested. Please update the secrets in your backend settings.");
+        toast.success(data.message || "Gmail settings update requested. Please update the secrets in your backend settings.");
         setGmailAppPassword("");
         setHasExistingPassword(true);
       } else {
         toast.error(data.error || "Failed to update Gmail settings");
       }
-      */
 
       // Simulated success
-      toast.success("Gmail settings verified and updated (Hardcoded configuration active)");
-      setGmailAppPassword("");
-      setHasExistingPassword(true);
+      // toast.success("Gmail settings verified and updated (Hardcoded configuration active)");
+      // setGmailAppPassword("");
+      // setHasExistingPassword(true);
 
     } catch (error: any) {
       toast.error(error.message || "Failed to update Gmail settings");
@@ -309,6 +308,50 @@ export default function Profile() {
       toast.error(error.message || "Failed to update password");
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const confirmed = window.confirm(
+      "This will generate a new random password and send it to your email. Are you sure you want to reset your password?"
+    );
+
+    if (!confirmed) return;
+
+    setResettingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expired. Please login again.");
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'reset_password' }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || "Password reset successful! Check your email.");
+        // Clear password fields
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(data.error || "Failed to reset password");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -472,9 +515,9 @@ export default function Profile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Key className="h-5 w-5" />
-              Change Password
+              Password Management
             </CardTitle>
-            <CardDescription>Update your login password</CardDescription>
+            <CardDescription>Update your login password or reset if forgotten</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -497,14 +540,25 @@ export default function Profile() {
                 placeholder="Confirm new password"
               />
             </div>
-            <Button
-              onClick={handlePasswordChange}
-              disabled={changingPassword || !newPassword || !confirmPassword}
-              className="w-full"
-            >
-              {changingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Key className="w-4 h-4 mr-2" />}
-              Update Password
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handlePasswordChange}
+                disabled={changingPassword || !newPassword || !confirmPassword}
+                className="flex-1"
+              >
+                {changingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Key className="w-4 h-4 mr-2" />}
+                Update Password
+              </Button>
+              <Button
+                onClick={handlePasswordReset}
+                disabled={resettingPassword}
+                variant="outline"
+                className="flex-1"
+              >
+                {resettingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                Reset Password
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

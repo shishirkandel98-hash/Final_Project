@@ -6,6 +6,7 @@ export interface Reminder {
   id: string;
   user_id: string;
   title: string;
+  subject: string;
   message: string;
   reminder_email: string;
   reminder_date: string;
@@ -23,6 +24,7 @@ export interface Reminder {
 interface CreateReminderData {
   user_id: string;
   title: string;
+  subject: string;
   message: string;
   reminder_email: string;
   reminder_date: string;
