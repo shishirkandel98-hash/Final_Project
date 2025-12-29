@@ -123,6 +123,10 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
     }
   };
 
+  const openTelegramBot = () => {
+    window.open('https://t.me/FinanceManagerRecordbot', '_blank');
+  };
+
   if (loading) {
     return (
       <Card>

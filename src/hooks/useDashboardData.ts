@@ -42,6 +42,45 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
       .eq("user_id", userId),
   ]);
 
+  // If profile doesn't exist, create a default one
+  let profileData = profileResult.data;
+  if (!profileData) {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          email: userData.user.email,
+          first_name: userData.user.user_metadata?.first_name || '',
+          last_name: userData.user.user_metadata?.last_name || '',
+          phone: userData.user.user_metadata?.phone || '',
+          country: userData.user.user_metadata?.country || '',
+          currency: userData.user.user_metadata?.currency || 'NPR',
+          approved: true,
+          approved_at: new Date().toISOString(),
+        });
+      
+      if (insertError) {
+        console.error('Failed to create profile:', insertError);
+        // If insert fails (maybe profile already exists), try to fetch again
+        const { data: retryProfile } = await supabase
+          .from("profiles")
+          .select("approved, report_email, currency, email")
+          .eq("id", userId)
+          .maybeSingle();
+        profileData = retryProfile;
+      } else {
+        profileData = {
+          approved: true,
+          report_email: userData.user.email,
+          currency: userData.user.user_metadata?.currency || 'NPR',
+          email: userData.user.email,
+        };
+      }
+    }
+  }
+
   const transactions = txResult.data || [];
   const loans = loansResult.data || [];
   const bankAccounts = bankResult.data || [];
@@ -71,10 +110,10 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
     loansGiven,
     loansTaken,
     totalBankBalance,
-    currency: profileResult.data?.currency || "NPR",
-    isApproved: profileResult.data?.approved ?? true,
-    isAdmin: !!roleResult.data || (profileResult.data?.email?.toLowerCase() === "shishirxkandel@gmail.com"),
-    reportEmail: profileResult.data?.report_email || "",
+    currency: profileData?.currency || "NPR",
+    isApproved: profileData?.approved ?? true,
+    isAdmin: !!roleResult.data || (profileData?.email?.toLowerCase() === "shishirxkandel@gmail.com"),
+    reportEmail: profileData?.report_email || "",
   };
 }
 
