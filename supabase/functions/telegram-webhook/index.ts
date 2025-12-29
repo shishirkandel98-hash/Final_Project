@@ -356,20 +356,23 @@ Please enter a valid email address.
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, email, first_name, last_name")
+    .select("id, email, first_name, last_name, approved")
     .ilike("email", normalizedEmail) // ilike is case-insensitive
+    .eq("approved", true) // Only allow approved users
     .maybeSingle();
 
   if (error || !profile) {
-    console.log("Email not found:", error);
+    console.log("Email not found or user not approved:", error);
     await sendTelegramMessage(chatId, `
-❌ <b>Email not found!</b>
+❌ <b>Email not found or account not approved!</b>
 
-The email <code>${email}</code> is not registered in Finance Manager.
+The email <code>${email}</code> is not registered or approved in Finance Manager.
 
 Please make sure you:
 1. Have signed up on Finance Manager website first
-2. Entered the correct email address
+2. Your account has been approved (this happens automatically)
+
+If you've just signed up, please wait a few minutes and try again.
 
 Try again with your registered email:
     `);
