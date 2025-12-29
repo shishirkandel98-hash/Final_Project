@@ -12,6 +12,7 @@ import { isValidEmail, isValidPhone, isValidName } from "@/lib/validation";
 import { format } from "date-fns";
 import { CURRENCIES } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TelegramConnect } from "@/components/TelegramConnect";
 
 interface UserSession {
   id: string;
@@ -509,6 +510,11 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Telegram Connect */}
+        {user && (
+          <TelegramConnect userId={user.id} userEmail={user.email || ""} />
+        )}
 
         {/* Password Change */}
         <Card>
