@@ -1,4 +1,10 @@
-project_id = "otmikczyvabizskrtziw"
+project_id = "zicezkodnaghvoroiswm"
+
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false
 
 [functions.telegram-webhook]
 verify_jwt = false

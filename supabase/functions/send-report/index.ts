@@ -79,14 +79,14 @@ const handler = async (req: Request): Promise<Response> => {
         port: 465,
         tls: true,
         auth: {
-          username: Deno.env.get("GMAIL_USER") ?? "",
-          password: Deno.env.get("GMAIL_APP_PASSWORD") ?? "",
+          username: "kpoliking001@gmail.com",
+          password: "nrcd lxrl omvc rpfy",
         },
       },
     });
 
     await client.send({
-      from: Deno.env.get("GMAIL_USER") ?? "",
+      from: "kpoliking001@gmail.com",
       to: userEmail,
       subject: `Finance Report - ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Summary`,
       html: emailHtml,

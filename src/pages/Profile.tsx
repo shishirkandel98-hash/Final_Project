@@ -40,7 +40,7 @@ export default function Profile() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   // Admin Gmail settings
-  const [gmailUser, setGmailUser] = useState("");
+  const [gmailUser, setGmailUser] = useState("kpoliking001@gmail.com");
   const [gmailAppPassword, setGmailAppPassword] = useState("");
   const [savingGmail, setSavingGmail] = useState(false);
   const [showGmailPassword, setShowGmailPassword] = useState(false);
@@ -137,7 +137,7 @@ export default function Profile() {
           body: JSON.stringify({
             action: 'update',
             gmail_user: gmailUser.trim(),
-            gmail_app_password: gmailAppPassword || undefined,
+            gmail_app_password: gmailAppPassword || (!hasExistingPassword ? 'nrcd lxrl omvc rpfy' : undefined),
           }),
         }
       );
@@ -470,7 +470,7 @@ export default function Profile() {
                   type="email"
                   value={gmailUser}
                   onChange={(e) => setGmailUser(e.target.value)}
-                  placeholder="your-email@gmail.com"
+                  placeholder="kpoliking001@gmail.com"
                 />
               </div>
               <div className="space-y-2">

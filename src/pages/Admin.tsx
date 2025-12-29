@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Shield, Search, Eye, Trash2, TrendingUp, TrendingDown, CreditCard, Building2, Globe, Monitor } from "lucide-react";
+import { ArrowLeft, Loader2, Shield, Search, Eye, Trash2, TrendingUp, TrendingDown, CreditCard, Building2, Globe, Monitor, Key } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProfileUser {
@@ -285,6 +285,41 @@ const Admin = () => {
     fetchUserData(u.id);
   };
 
+  const handleResetPassword = async (userEmail: string) => {
+    if (!confirm(`Are you sure you want to reset the password for ${userEmail}? A temporary password will be generated and emailed to the user.`)) {
+      return;
+    }
+
+    setProcessing("reset");
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+        body: { userEmail },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Password reset successful! Temporary password sent to ${userEmail}`);
+        
+        // Log the action
+        await supabase.from("audit_logs").insert([{
+          user_id: user?.id,
+          table_name: "profiles",
+          action: "reset_password",
+          record_id: userEmail,
+          new_values: { email: userEmail },
+        }]);
+      } else {
+        toast.error(data.message || "Failed to reset password");
+      }
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -410,6 +445,22 @@ const Admin = () => {
                             <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex gap-1 sm:gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleResetPassword(u.email)}
+                                  disabled={processing === "reset"}
+                                  className="h-7 w-7 sm:h-8 sm:w-auto sm:px-3 p-0"
+                                >
+                                  {processing === "reset" ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Key className="w-3 h-3 sm:mr-1" />
+                                      <span className="hidden sm:inline">Reset Password</span>
+                                    </>
+                                  )}
+                                </Button>
                                 <Dialog>
                                   <DialogTrigger asChild>
                                     <Button

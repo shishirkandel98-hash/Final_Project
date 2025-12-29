@@ -6,6 +6,7 @@ DROP POLICY IF EXISTS "Users can view their own telegram link" ON public.telegra
 DROP POLICY IF EXISTS "Users can create their own telegram link" ON public.telegram_links;
 DROP POLICY IF EXISTS "Users can update their own telegram link" ON public.telegram_links;
 DROP POLICY IF EXISTS "Users can delete their own telegram link" ON public.telegram_links;
+DROP POLICY IF EXISTS "Admins can manage all telegram links" ON public.telegram_links;
 
 CREATE POLICY "Users can view their own telegram link"
 ON public.telegram_links FOR SELECT

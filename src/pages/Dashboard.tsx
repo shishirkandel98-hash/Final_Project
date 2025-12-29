@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, TrendingUp, TrendingDown, LogOut, Plus, StickyNote, Loader2, Shield, History, Building2, BarChart3, Landmark, Lock, User as UserIcon, HandCoins, Banknote, FileText } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, LogOut, Plus, StickyNote, Loader2, Shield, History, Building2, BarChart3, Landmark, Lock, User as UserIcon, HandCoins, Banknote, FileText, Bell } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { TransactionForm } from "@/components/TransactionForm";
@@ -24,6 +24,7 @@ const AnalyticsChart = lazy(() => import("@/components/AnalyticsChart").then(m =
 const FinancialStatement = lazy(() => import("@/components/FinancialStatement").then(m => ({ default: m.FinancialStatement })));
 const NotesPanel = lazy(() => import("@/components/NotesPanel").then(m => ({ default: m.NotesPanel })));
 const SendReportDialog = lazy(() => import("@/components/SendReportDialog").then(m => ({ default: m.SendReportDialog })));
+const RemindersPanel = lazy(() => import("@/components/RemindersPanel"));
 
 // Memoized summary card component
 const SummaryCard = memo(({ 
@@ -232,7 +233,7 @@ const Dashboard = () => {
 
         {/* Tab Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               <Wallet className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
               <span className="hidden sm:inline">Overview</span>
@@ -248,6 +249,10 @@ const Dashboard = () => {
             <TabsTrigger value="bank" className="text-xs sm:text-sm">
               <Building2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
               <span className="hidden sm:inline">Bank</span>
+            </TabsTrigger>
+            <TabsTrigger value="reminders" className="text-xs sm:text-sm">
+              <Bell className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Reminders</span>
             </TabsTrigger>
             <TabsTrigger value="notes" className="text-xs sm:text-sm">
               <StickyNote className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
@@ -357,6 +362,12 @@ const Dashboard = () => {
                 <BankAccountForm onUpdate={invalidateDashboard} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="reminders">
+            <Suspense fallback={<ComponentLoader />}>
+              <RemindersPanel />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="notes">

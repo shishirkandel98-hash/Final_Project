@@ -74,9 +74,26 @@ export function useAuthSession(redirectToAuth = false) {
 
     // Listen to auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         cachedSession = session;
         sessionChecked = true;
+
+        // Auto-assign admin role for specific email
+        if (session?.user?.email === 'shishirxkandel@gmail.com') {
+          try {
+            const { error } = await supabase
+              .from('user_roles')
+              .upsert(
+                { user_id: session.user.id, role: 'admin' },
+                { onConflict: 'user_id,role' }
+              );
+            if (error) {
+              console.error('Failed to assign admin role:', error);
+            }
+          } catch (err) {
+            console.error('Error assigning admin role:', err);
+          }
+        }
 
         if (mounted) {
           if (!session && redirectToAuth) {

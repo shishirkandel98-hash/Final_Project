@@ -198,6 +198,76 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email.trim());
 }
 
+async function verifyTelegramLogin(email: string, password: string, telegramId: number, username?: string): Promise<{ success: boolean; message: string; profile?: any }> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Verify password using Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password: password,
+  });
+
+  if (authError || !authData.user) {
+    console.log("Auth error:", authError);
+    return { success: false, message: "Invalid credentials" };
+  }
+
+  // Get profile data by user id
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, first_name, email, currency, approved")
+    .eq("id", authData.user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    await supabase.auth.signOut();
+    return { success: false, message: "Profile not found" };
+  }
+
+  if (!profile.approved) {
+    await supabase.auth.signOut();
+    return { success: false, message: "Account not approved. Please contact administrator." };
+  }
+
+  // Link Telegram ID if not already linked
+  const { data: existingLink } = await supabase
+    .from("telegram_links")
+    .select("telegram_chat_id")
+    .eq("user_id", profile.id)
+    .eq("verified", true)
+    .maybeSingle();
+
+  if (!existingLink || existingLink.telegram_chat_id !== telegramId) {
+    // Remove any existing telegram links for this user (enforce single device)
+    await supabase
+      .from("telegram_links")
+      .delete()
+      .eq("user_id", profile.id);
+
+    // Create telegram link
+    const { error: linkError } = await supabase
+      .from("telegram_links")
+      .insert({
+        user_id: profile.id,
+        telegram_chat_id: telegramId,
+        telegram_username: username,
+        verified: true,
+        verification_code: JSON.stringify({}),
+      });
+
+    if (linkError) {
+      console.error("Link error:", linkError);
+      await supabase.auth.signOut();
+      return { success: false, message: "Error linking account" };
+    }
+  }
+
+  // Sign out
+  await supabase.auth.signOut();
+
+  return { success: true, message: "Login successful", profile };
+}
+
 async function getUserLink(chatId: number) {
   const { data } = await supabase
     .from("telegram_links")
@@ -280,12 +350,14 @@ Please enter a valid email address.
     return;
   }
   
-  console.log(`Checking email: ${email}`);
+  const normalizedEmail = email.trim().toLowerCase();
+  
+  console.log(`Checking email: ${normalizedEmail}`);
   
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("id, email, first_name, last_name")
-    .ilike("email", email.trim())
+    .ilike("email", normalizedEmail)
     .maybeSingle();
 
   if (error || !profile) {
@@ -331,12 +403,12 @@ Or send /start to try with a different email.
   }
 
   // Store email and request password (persist in database)
-  await setPendingAuth(chatId, { email: email.trim(), attempts: 0, step: "password", timestamp: Date.now() });
+  await setPendingAuth(chatId, { email: normalizedEmail, attempts: 0, step: "password", timestamp: Date.now() });
   
   await sendTelegramMessage(chatId, `
 ✅ <b>Email verified!</b>
 
-📧 Email: <code>${email}</code>
+📧 Email: <code>${normalizedEmail}</code>
 
 🔑 <b>Step 2:</b> Enter your password to complete verification:
 
@@ -373,67 +445,30 @@ Send /start to restart.
   // Update attempts in database
   await setPendingAuth(chatId, pending);
 
-  // Verify password using Supabase Auth
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: pending.email,
-    password: password,
-  });
+  // Verify login using the new function
+  const result = await verifyTelegramLogin(pending.email, password, chatId, username);
 
-  if (authError || !authData.user) {
-    console.log("Auth error:", authError);
-    const remainingAttempts = 3 - pending.attempts;
-    await sendTelegramMessage(chatId, `
+  if (!result.success) {
+    if (result.message === "Invalid credentials") {
+      const remainingAttempts = 3 - pending.attempts;
+      await sendTelegramMessage(chatId, `
 ❌ <b>Invalid password!</b>
 
 ${remainingAttempts > 0 ? `You have <b>${remainingAttempts}</b> attempt(s) remaining.` : "No attempts remaining."}
 
 Please enter your correct password:
-    `);
+      `);
+    } else {
+      await sendTelegramMessage(chatId, `❌ ${result.message}. Please try again.`);
+      await clearPendingAuth(chatId);
+    }
     return;
   }
 
-  // Sign out the service role client session
-  await supabase.auth.signOut();
-
-  // Get profile data
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, first_name, email, currency")
-    .eq("email", pending.email)
-    .maybeSingle();
-
-  if (!profile) {
-    await sendTelegramMessage(chatId, "❌ Profile not found. Please try again.");
-    await clearPendingAuth(chatId);
-    return;
-  }
-
-  // Clear pending auth first
+  // Clear pending auth
   await clearPendingAuth(chatId);
 
-  // Remove any existing telegram links for this user (enforce single device)
-  await supabase
-    .from("telegram_links")
-    .delete()
-    .eq("user_id", profile.id);
-
-  // Create telegram link
-  const { error: linkError } = await supabase
-    .from("telegram_links")
-    .insert({
-      user_id: profile.id,
-      telegram_chat_id: chatId,
-      telegram_username: username,
-      verified: true,
-      verification_code: JSON.stringify({}),
-    });
-
-  if (linkError) {
-    console.error("Link error:", linkError);
-    await sendTelegramMessage(chatId, "❌ Error linking account. Please try again.");
-    return;
-  }
-
+  const profile = result.profile;
   const name = profile.first_name || profile.email.split("@")[0];
 
   await sendTelegramMessage(chatId, `
@@ -447,6 +482,17 @@ Welcome, <b>${name}</b>! 🎉
 ━━━━━━━━━━━━━━━━━━━━━━
 
 You can now record transactions instantly!
+
+<b>Available Options:</b>
+📥 <b>Income</b> - Record money received
+📤 <b>Expense</b> - Record money spent
+💳 <b>Loan</b> - Track borrowed/lent money
+🏦 <b>Bank Balance</b> - View account summary
+📊 <b>Report</b> - Full statement
+
+<b>Choose an option below:</b>
+  `, { reply_markup: getMainMenuKeyboard() });
+}
 
 <b>Available Options:</b>
 📥 <b>Income</b> - Record money received
