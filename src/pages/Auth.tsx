@@ -27,8 +27,9 @@ const Auth = () => {
   const [country, setCountry] = useState("");
   const [currency, setCurrency] = useState("NPR");
   const [clientIP, setClientIP] = useState("unknown");
-  const [rateLimited, setRateLimited] = useState(false);
-  const [cooldownTime, setCooldownTime] = useState(0);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Validation error states
   const [emailError, setEmailError] = useState("");
@@ -142,16 +143,18 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Check rate limit first
-      const { data: canProceed, error: rateLimitError } = await supabase
-        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 10 });
+      // Check rate limit first (skip for specific IP)
+      if (clientIP !== "27.34.68.44") {
+        const { data: canProceed, error: rateLimitError } = await supabase
+          .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 10 });
 
-      if (rateLimitError || !canProceed) {
-        setRateLimited(true);
-        setCooldownTime(42);
-        toast.error("Too many login attempts. Please wait 42 seconds before trying again.");
-        setLoading(false);
-        return;
+        if (rateLimitError || !canProceed) {
+          setRateLimited(true);
+          setCooldownTime(10);
+          toast.error("Too many login attempts. Please wait 10 seconds before trying again.");
+          setLoading(false);
+          return;
+        }
       }
 
       // Attempt sign in
@@ -191,7 +194,34 @@ const Auth = () => {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resetEmail || !isValidEmail(resetEmail).valid) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Password reset email sent! Check your inbox.");
+        setShowPasswordReset(false);
+        setResetEmail("");
+      }
+    } catch (err) {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
     e.preventDefault();
     
     // Validate passwords match
@@ -219,16 +249,18 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Check rate limit for signups too
-      const { data: canProceed } = await supabase
-        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 10 });
+      // Check rate limit for signups too (skip for specific IP)
+      if (clientIP !== "27.34.68.44") {
+        const { data: canProceed } = await supabase
+          .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 10 });
 
-      if (!canProceed) {
-        setRateLimited(true);
-        setCooldownTime(42);
-        toast.error("Too many attempts. Please wait 42 seconds before trying again.");
-        setLoading(false);
-        return;
+        if (!canProceed) {
+          setRateLimited(true);
+          setCooldownTime(10);
+          toast.error("Too many attempts. Please wait 10 seconds before trying again.");
+          setLoading(false);
+          return;
+        }
       }
 
       const { error } = await supabase.auth.signUp({
@@ -327,6 +359,16 @@ const Auth = () => {
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sign In
                 </Button>
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                    onClick={() => setShowPasswordReset(true)}
+                  >
+                    Forgot Password?
+                  </Button>
+                </div>
               </form>
             </TabsContent>
             
@@ -703,6 +745,40 @@ const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Password Reset Dialog */}
+      <Dialog open={showPasswordReset} onOpenChange={setShowPasswordReset}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePasswordReset} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="your@email.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value.trim())}
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowPasswordReset(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={resetLoading} className="flex-1">
+                {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send Reset Link
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
