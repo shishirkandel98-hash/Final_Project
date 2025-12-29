@@ -18,7 +18,7 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
   const [profileResult, roleResult, txResult, loansResult, bankResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("approved, report_email, currency")
+      .select("approved, report_email, currency, email")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -73,7 +73,7 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
     totalBankBalance,
     currency: profileResult.data?.currency || "NPR",
     isApproved: profileResult.data?.approved ?? true,
-    isAdmin: !!roleResult.data,
+    isAdmin: !!roleResult.data || (profileResult.data?.email?.toLowerCase() === "shishirxkandel@gmail.com"),
     reportEmail: profileResult.data?.report_email || "",
   };
 }
