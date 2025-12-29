@@ -18,6 +18,7 @@ import { format } from "date-fns";
 interface ReminderFormData {
   title: string;
   message: string;
+  reminder_email: string;
   reminder_date: string;
   reminder_time: string;
   is_recurring: boolean;
@@ -56,6 +57,7 @@ const RemindersPanel = () => {
     setFormData({
       title: "",
       message: "",
+      reminder_email: user?.email || "",
       reminder_date: "",
       reminder_time: "",
       is_recurring: false,
@@ -76,6 +78,10 @@ const RemindersPanel = () => {
     }
     if (!formData.message.trim()) {
       toast.error("Please enter a reminder message");
+      return;
+    }
+    if (!formData.reminder_email.trim()) {
+      toast.error("Please enter an email address for the reminder");
       return;
     }
     if (!formData.reminder_date) {
@@ -152,6 +158,7 @@ const RemindersPanel = () => {
         user_id: user.id,
         title: formData.title.trim(),
         message: formData.message.trim(),
+        reminder_email: formData.reminder_email.trim(),
         reminder_date: reminderDateTime.toISOString(),
         is_recurring: formData.is_recurring,
         recurrence_count: formData.is_recurring ? formData.recurrence_count : 1,
@@ -182,6 +189,10 @@ const RemindersPanel = () => {
       toast.error("Please enter a reminder message");
       return;
     }
+    if (!formData.reminder_email.trim()) {
+      toast.error("Please enter an email address for the reminder");
+      return;
+    }
     if (!formData.reminder_date) {
       toast.error("Please select a reminder date");
       return;
@@ -205,6 +216,7 @@ const RemindersPanel = () => {
         id: editingReminder.id,
         title: formData.title.trim(),
         message: formData.message.trim(),
+        reminder_email: formData.reminder_email.trim(),
         reminder_date: reminderDateTime.toISOString(),
         is_recurring: formData.is_recurring,
         recurrence_count: formData.is_recurring ? formData.recurrence_count : 1,
@@ -227,6 +239,7 @@ const RemindersPanel = () => {
     setFormData({
       title: reminder.title,
       message: reminder.message,
+      reminder_email: reminder.reminder_email || user?.email || "",
       reminder_date: reminderDate.toISOString().split('T')[0],
       reminder_time: reminderDate.toTimeString().slice(0, 5),
       is_recurring: reminder.is_recurring,
@@ -334,6 +347,16 @@ const RemindersPanel = () => {
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     placeholder="Reminder message"
                     rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.reminder_email}
+                    onChange={(e) => setFormData({ ...formData, reminder_email: e.target.value })}
+                    placeholder="email@example.com"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">

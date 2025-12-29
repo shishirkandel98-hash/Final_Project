@@ -7,6 +7,7 @@ export interface Reminder {
   user_id: string;
   title: string;
   message: string;
+  reminder_email: string;
   reminder_date: string;
   is_recurring: boolean;
   recurrence_count: number;
@@ -20,8 +21,10 @@ export interface Reminder {
 }
 
 interface CreateReminderData {
+  user_id: string;
   title: string;
   message: string;
+  reminder_email: string;
   reminder_date: string;
   is_recurring?: boolean;
   recurrence_count?: number;

