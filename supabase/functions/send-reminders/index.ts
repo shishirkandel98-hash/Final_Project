@@ -81,7 +81,8 @@ async function processReminders() {
         recurrence_count,
         recurrence_interval,
         recurrence_end_date,
-        email_sent_count
+        email_sent_count,
+        profiles!inner(email)
       `)
       .eq("is_active", true)
       .lte("reminder_date", now.toISOString())
@@ -96,7 +97,8 @@ async function processReminders() {
 
     for (const reminder of dueReminders || []) {
       try {
-        const userEmail = reminder.reminder_email;
+        // Use reminder_email if available, otherwise fall back to profile email
+        const userEmail = reminder.reminder_email || reminder.profiles.email;
 
         // Send the email
         const emailSent = await sendReminderEmail(userEmail, reminder.title, reminder.message);
