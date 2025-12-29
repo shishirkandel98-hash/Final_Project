@@ -41,14 +41,15 @@ export const TransactionList = ({ onUpdate }: TransactionListProps) => {
   const fetchTransactions = async () => {
     try {
       // Fetch user currency
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const user = session.user;
         const { data: profile } = await supabase
           .from("profiles")
           .select("currency")
           .eq("id", user.id)
           .maybeSingle();
-        
+
         if (profile?.currency) {
           setCurrency(profile.currency);
         }
@@ -58,7 +59,7 @@ export const TransactionList = ({ onUpdate }: TransactionListProps) => {
       const { data, error } = await supabase
         .from("transactions")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
         .limit(10);
 
@@ -78,8 +79,9 @@ export const TransactionList = ({ onUpdate }: TransactionListProps) => {
   const handleDelete = async (transaction: Transaction) => {
     setDeleting(transaction.id);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Not authenticated");
+      const user = session.user;
 
       const { error } = await supabase
         .from("transactions")

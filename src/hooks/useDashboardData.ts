@@ -45,8 +45,9 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
   // If profile doesn't exist, create a default one
   let profileData = profileResult.data;
   if (!profileData) {
-    const { data: userData } = await supabase.auth.getUser();
-    if (userData?.user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const userData = { user: session.user };
       const { error: insertError } = await supabase
         .from("profiles")
         .insert({
@@ -60,7 +61,7 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
           approved: true,
           approved_at: new Date().toISOString(),
         });
-      
+
       if (insertError) {
         console.error('Failed to create profile:', insertError);
         // If insert fails (maybe profile already exists), try to fetch again

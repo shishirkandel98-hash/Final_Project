@@ -34,9 +34,10 @@ export const LoanForm = ({ onSuccess }: LoanFormProps) => {
   }, []);
 
   const fetchBankAccounts = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from("bank_accounts").select("id, bank_name, account_number, current_balance").eq("user_id", user.id);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const { data } = await supabase.from("bank_accounts").select("id, bank_name, account_number, current_balance").eq("user_id", session.user.id);
+
     if (data) setBankAccounts(data);
   };
 
@@ -45,8 +46,10 @@ export const LoanForm = ({ onSuccess }: LoanFormProps) => {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Not authenticated");
+
+      const user = session.user;
 
       let imageUrl = null;
       if (image) {
@@ -57,7 +60,7 @@ export const LoanForm = ({ onSuccess }: LoanFormProps) => {
           .upload(fileName, image);
 
         if (uploadError) throw uploadError;
-        
+
         const { data: { publicUrl } } = supabase.storage
           .from('transaction-images')
           .getPublicUrl(fileName);
@@ -83,10 +86,10 @@ export const LoanForm = ({ onSuccess }: LoanFormProps) => {
       if (selectedBankId && selectedBankId !== "cash") {
         const bankAccount = bankAccounts.find(b => b.id === selectedBankId);
         if (bankAccount) {
-          const newBalance = loanType === "take" 
+          const newBalance = loanType === "take"
             ? bankAccount.current_balance + parseFloat(amount)  // Money received
             : bankAccount.current_balance - parseFloat(amount); // Money given out
-          
+
           await supabase
             .from("bank_accounts")
             .update({ current_balance: newBalance })
@@ -200,8 +203,8 @@ export const LoanForm = ({ onSuccess }: LoanFormProps) => {
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          {selectedBankId && selectedBankId !== "cash" 
-            ? loanType === "take" 
+          {selectedBankId && selectedBankId !== "cash"
+            ? loanType === "take"
               ? "Bank balance will increase (money received)"
               : "Bank balance will decrease (money given out)"
             : "Select cash or bank account"

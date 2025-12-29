@@ -66,11 +66,12 @@ export const BankAccountForm = ({ onUpdate }: Props) => {
   const fetchData = async () => {
     try {
       // Get current user to ensure data isolation
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         setLoading(false);
         return;
       }
+      const user = session.user;
 
       // Explicitly filter by user_id to ensure only user's own bank accounts are shown
       const [accountsResult, txResult] = await Promise.all([
@@ -92,8 +93,9 @@ export const BankAccountForm = ({ onUpdate }: Props) => {
     setSaving(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Not authenticated");
+      const user = session.user;
 
       const { error } = await supabase.from("bank_accounts").insert({
         user_id: user.id,
@@ -162,7 +164,7 @@ export const BankAccountForm = ({ onUpdate }: Props) => {
 
     try {
       const amount = parseFloat(txAmount);
-      
+
       // Add transaction
       const { error: txError } = await supabase.from("bank_transactions").insert({
         bank_account_id: selectedAccount,

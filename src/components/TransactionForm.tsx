@@ -35,9 +35,10 @@ export const TransactionForm = ({ onSuccess }: TransactionFormProps) => {
   }, []);
 
   const fetchBankAccounts = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from("bank_accounts").select("id, bank_name, account_number, current_balance").eq("user_id", user.id);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const { data } = await supabase.from("bank_accounts").select("id, bank_name, account_number, current_balance").eq("user_id", session.user.id);
+
     if (data) setBankAccounts(data);
   };
 
@@ -46,8 +47,10 @@ export const TransactionForm = ({ onSuccess }: TransactionFormProps) => {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Not authenticated");
+
+      const user = session.user;
 
       let imageUrl = null;
       if (image) {
@@ -58,7 +61,7 @@ export const TransactionForm = ({ onSuccess }: TransactionFormProps) => {
           .upload(fileName, image);
 
         if (uploadError) throw uploadError;
-        
+
         const { data: { publicUrl } } = supabase.storage
           .from('transaction-images')
           .getPublicUrl(fileName);

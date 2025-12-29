@@ -83,8 +83,8 @@ export default function Profile() {
       .maybeSingle();
 
     // HARDCODED ADMIN CHECK
-    const { data: userData } = await supabase.auth.getUser();
-    const isHardcodedAdmin = userData?.user?.email === "shishirxkandel@gmail.com";
+    const { data: { session } } = await supabase.auth.getSession();
+    const isHardcodedAdmin = session?.user?.email === "shishirxkandel@gmail.com";
 
     // Check if user is the hardcoded admin or has admin role in DB
     const adminStatus = !!data || isHardcodedAdmin;

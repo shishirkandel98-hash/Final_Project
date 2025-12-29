@@ -105,8 +105,8 @@ export const useCreateReminder = () => {
         toast.error("This reminder already exists.");
       } else if (error.code === '23503') {
         toast.error("Invalid data provided.");
-      } else if (error.code === 'PGRST205') {
-        toast.error("Reminders feature is not available yet. Please contact support or try again later.");
+      } else if (error.code === '23503') {
+        toast.error("Invalid data provided.");
       } else {
         toast.error(`Failed to create reminder: ${error.message || "Please try again."}`);
       }
@@ -177,4 +177,37 @@ export const useInvalidateReminders = () => {
   return () => {
     queryClient.invalidateQueries({ queryKey: ["reminders"] });
   };
+};
+
+export interface ReminderLog {
+  id: string;
+  reminder_id: string | null;
+  user_id: string;
+  sent_at: string;
+  email_to: string;
+  subject: string;
+  status: string;
+}
+
+export const useReminderLogs = (userId?: string) => {
+  return useQuery({
+    queryKey: ["reminder_logs", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+
+      const { data, error } = await supabase
+        .from("reminder_logs")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sent_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching reminder logs:", error);
+        throw error;
+      }
+
+      return data as ReminderLog[];
+    },
+    enabled: !!userId,
+  });
 };

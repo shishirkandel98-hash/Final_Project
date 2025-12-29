@@ -129,9 +129,10 @@ BEGIN
 END;
 $$;
 
--- Create storage bucket for vault files
+-- Create storage bucket for vault files (only if it doesn't exist)
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
-VALUES ('vault-files', 'vault-files', false, 5242880);
+VALUES ('vault-files', 'vault-files', false, 5242880)
+ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for vault files
 CREATE POLICY "Users can upload their own vault files"

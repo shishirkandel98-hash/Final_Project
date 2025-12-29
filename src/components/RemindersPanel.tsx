@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { useRemindersData, useCreateReminder, useUpdateReminder, useDeleteReminder, type Reminder } from "@/hooks/useRemindersData";
+import { useRemindersData, useCreateReminder, useUpdateReminder, useDeleteReminder, useReminderLogs, type Reminder } from "@/hooks/useRemindersData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Bell, Plus, Edit, Trash2, Clock, Calendar, Repeat, Mail } from "lucide-react";
+import { Bell, Plus, Edit, Trash2, Clock, Calendar, Repeat, Mail, History } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -31,9 +33,11 @@ interface ReminderFormData {
 const RemindersPanel = () => {
   const { user } = useAuthSession();
   const { data: reminders = [], isLoading } = useRemindersData(user?.id);
+  const { data: logs = [] } = useReminderLogs(user?.id);
   const createReminder = useCreateReminder();
   const updateReminder = useUpdateReminder();
   const deleteReminder = useDeleteReminder();
+
 
   const isOverdue = (reminder: Reminder) => {
     const reminderDate = new Date(reminder.reminder_date);
@@ -45,7 +49,9 @@ const RemindersPanel = () => {
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [formData, setFormData] = useState<ReminderFormData>({
     title: "",
+    subject: "",
     message: "",
+    reminder_email: "",
     reminder_date: "",
     reminder_time: "",
     is_recurring: false,
@@ -335,7 +341,7 @@ const RemindersPanel = () => {
                 Add Reminder
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create Reminder</DialogTitle>
                 <DialogDescription>
@@ -463,108 +469,158 @@ const RemindersPanel = () => {
           </Dialog>
         </CardHeader>
         <CardContent>
-          {reminders.length === 0 ? (
-            <div className="text-center py-8">
-              <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-2">No reminders yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create your first reminder to stay organized
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {reminders.map((reminder) => (
-                <Card key={reminder.id} className={`p-4 ${isOverdue(reminder) ? 'border-red-200 bg-red-50' : ''}`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium">{reminder.title}</h4>
-                        {isOverdue(reminder) && (
-                          <Badge variant="destructive" className="text-xs">Overdue</Badge>
-                        )}
-                        {!reminder.is_active && (
-                          <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                        )}
-                        {reminder.is_recurring && (
-                          <Badge variant="outline" className="text-xs">
-                            <Repeat className="w-3 h-3 mr-1" />
-                            {getRecurrenceLabel(reminder)}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">{reminder.message}</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(reminder.reminder_date), "PPP")}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {format(new Date(reminder.reminder_date), "p")}
-                        </div>
-                        {reminder.email_sent_count > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            Sent {reminder.email_sent_count} time{reminder.email_sent_count !== 1 ? 's' : ''}
+          <Tabs defaultValue="scheduled" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="scheduled" className="space-y-4 pt-4">
+              {reminders.length === 0 ? (
+                <div className="text-center py-8">
+                  <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2">No reminders yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create your first reminder to stay organized
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reminders.map((reminder) => (
+                    <Card key={reminder.id} className={`p-4 ${isOverdue(reminder) ? 'border-red-200 bg-red-50' : ''}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium">{reminder.title}</h4>
+                            {isOverdue(reminder) && (
+                              <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                            )}
+                            {!reminder.is_active && (
+                              <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                            )}
+                            {reminder.is_recurring && (
+                              <Badge variant="outline" className="text-xs">
+                                <Repeat className="w-3 h-3 mr-1" />
+                                {getRecurrenceLabel(reminder)}
+                              </Badge>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleActive(reminder)}
-                        className="h-8 w-8 p-0"
-                      >
-                        {reminder.is_active ? (
-                          <Bell className="w-4 h-4" />
-                        ) : (
-                          <Bell className="w-4 h-4 opacity-50" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditReminder(reminder)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
+                          <p className="text-sm text-muted-foreground mb-2">{reminder.message}</p>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(reminder.reminder_date), "PPP")}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {format(new Date(reminder.reminder_date), "p")}
+                            </div>
+                            {reminder.email_sent_count > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                Sent {reminder.email_sent_count} time{reminder.email_sent_count !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleActive(reminder)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {reminder.is_active ? (
+                              <Bell className="w-4 h-4" />
+                            ) : (
+                              <Bell className="w-4 h-4 opacity-50" />
+                            )}
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Reminder</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this reminder? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteReminder(reminder.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditReminder(reminder)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Reminder</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this reminder? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteReminder(reminder.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="history" className="pt-4">
+              {logs.length === 0 ? (
+                <div className="text-center py-8">
+                  <History className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2">No history yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Sent reminder emails will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-sm">
+                            {format(new Date(log.sent_at), "PP p")}
+                          </TableCell>
+                          <TableCell>{log.subject}</TableCell>
+                          <TableCell>{log.email_to}</TableCell>
+                          <TableCell className="capitalize">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              {log.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
       {/* Edit Dialog */}
       {editingReminder && (
         <Dialog open={!!editingReminder} onOpenChange={() => setEditingReminder(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Reminder</DialogTitle>
               <DialogDescription>

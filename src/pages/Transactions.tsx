@@ -20,7 +20,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Trash2, Eye, Loader2, TrendingUp, TrendingDown, CreditCard, StickyNote, RefreshCw, ArrowUpRight, ArrowDownLeft, Calendar, Pencil, X, Check } from "lucide-react";
+import { ArrowLeft, Trash2, Eye, Loader2, TrendingUp, TrendingDown, CreditCard, StickyNote, RefreshCw, ArrowUpRight, ArrowDownLeft, Calendar, Pencil, X, Check, Bell } from "lucide-react";
+import RemindersPanel from "@/components/RemindersPanel";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
@@ -87,18 +88,18 @@ const Transactions = () => {
       return;
     }
     setUser(session.user);
-    
+
     // Fetch user currency
     const { data: profile } = await supabase
       .from("profiles")
       .select("currency")
       .eq("id", session.user.id)
       .maybeSingle();
-    
+
     if (profile?.currency) {
       setCurrency(profile.currency);
     }
-    
+
     fetchData();
     setLoading(false);
   };
@@ -231,14 +232,14 @@ const Transactions = () => {
     setDeleting(loan.id);
     try {
       const refundedAt = new Date().toISOString();
-      
+
       // For "take" loans (borrowed money) - refund means we paid back, so it's an expense
       // For "give" loans (lent money) - refund means we got it back, so it's income
       const transactionType = loan.loan_type === "give" ? "income" : "expense";
-      const description = loan.loan_type === "give" 
+      const description = loan.loan_type === "give"
         ? `Loan Received Back: ${loan.description || 'Loan repayment'}`
         : `Loan Paid Back: ${loan.description || 'Loan repayment'}`;
-      
+
       // Create transaction for refunded loan
       const { data: newTx, error: txError } = await supabase
         .from("transactions")
@@ -257,10 +258,10 @@ const Transactions = () => {
       // Update loan status to refunded
       const { error: loanError } = await supabase
         .from("loans")
-        .update({ 
-          status: "refunded", 
+        .update({
+          status: "refunded",
           refunded_at: refundedAt,
-          refund_transaction_id: newTx.id 
+          refund_transaction_id: newTx.id
         })
         .eq("id", loan.id);
 
@@ -378,7 +379,7 @@ const Transactions = () => {
           </CardHeader>
           <CardContent className="p-0 sm:p-6 sm:pt-0">
             <Tabs defaultValue="income">
-              <TabsList className="mx-3 sm:mx-0 mb-3 grid grid-cols-4 w-auto">
+              <TabsList className="mx-3 sm:mx-0 mb-3 grid grid-cols-5 w-auto">
                 <TabsTrigger value="income" className="text-xs sm:text-sm">
                   <TrendingUp className="w-3 h-3 sm:mr-1 text-green-500" />
                   <span className="hidden sm:inline">Income</span>
@@ -398,6 +399,10 @@ const Transactions = () => {
                   <StickyNote className="w-3 h-3 sm:mr-1" />
                   <span className="hidden sm:inline">Notes</span>
                   <span className="ml-1">({notes.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="reminders" className="text-xs sm:text-sm">
+                  <Bell className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Reminders</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -818,8 +823,8 @@ const Transactions = () => {
                         loans.map((loan) => (
                           <TableRow key={loan.id}>
                             <TableCell>
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className={`text-[10px] sm:text-xs ${loan.loan_type === "give" ? "border-blue-500 text-blue-500" : "border-purple-500 text-purple-500"}`}
                               >
                                 {loan.loan_type === "give" ? (
@@ -1043,6 +1048,10 @@ const Transactions = () => {
                     </TableBody>
                   </Table>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="reminders">
+                <RemindersPanel />
               </TabsContent>
             </Tabs>
           </CardContent>
