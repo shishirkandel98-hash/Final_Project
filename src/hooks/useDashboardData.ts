@@ -81,6 +81,17 @@ async function fetchDashboardData(userId: string): Promise<DashboardData> {
     }
   }
 
+  // Ensure we have profile data, even if creation/fetching failed
+  if (!profileData) {
+    console.warn('Profile data not found, using defaults');
+    profileData = {
+      approved: true,
+      report_email: '',
+      currency: 'NPR',
+      email: '',
+    };
+  }
+
   const transactions = txResult.data || [];
   const loans = loansResult.data || [];
   const bankAccounts = bankResult.data || [];
