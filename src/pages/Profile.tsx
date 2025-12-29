@@ -80,7 +80,13 @@ export default function Profile() {
       .eq("user_id", userId)
       .eq("role", "admin")
       .maybeSingle();
-    const adminStatus = !!data;
+
+    // HARDCODED ADMIN CHECK
+    const { data: userData } = await supabase.auth.getUser();
+    const isHardcodedAdmin = userData?.user?.email === "shishirxkandel@gmail.com";
+
+    // Check if user is the hardcoded admin or has admin role in DB
+    const adminStatus = !!data || isHardcodedAdmin;
     setIsAdmin(adminStatus);
 
     // If admin, fetch Gmail settings

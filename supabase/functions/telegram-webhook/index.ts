@@ -15,7 +15,7 @@ const corsHeaders = {
 async function sendTelegramMessage(chatId: number, text: string, options?: { reply_markup?: unknown }) {
   const body: Record<string, unknown> = { chat_id: chatId, text, parse_mode: "HTML" };
   if (options?.reply_markup) body.reply_markup = options.reply_markup;
-  
+
   const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,16 +28,16 @@ async function getTelegramFile(fileId: string): Promise<{ url: string; buffer: A
   try {
     const fileResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
     const fileData = await fileResponse.json();
-    
+
     if (!fileData.ok || !fileData.result?.file_path) {
       console.error("Failed to get file path:", fileData);
       return null;
     }
-    
+
     const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`;
     const imageResponse = await fetch(fileUrl);
     const buffer = await imageResponse.arrayBuffer();
-    
+
     return { url: fileUrl, buffer };
   } catch (error) {
     console.error("Error fetching file:", error);
@@ -54,16 +54,16 @@ async function uploadImageToStorage(userId: string, buffer: ArrayBuffer, fileNam
         contentType: "image/jpeg",
         upsert: false,
       });
-    
+
     if (error) {
       console.error("Upload error:", error);
       return null;
     }
-    
+
     const { data: publicUrl } = supabase.storage
       .from("transaction-images")
       .getPublicUrl(filePath);
-    
+
     return publicUrl.publicUrl;
   } catch (error) {
     console.error("Storage upload error:", error);
@@ -98,13 +98,13 @@ function getLoanTypeKeyboard() {
 
 function getPaymentMethodKeyboard(bankAccounts: { id: string; bank_name: string }[]) {
   const keyboard = [[{ text: "💵 Cash" }]];
-  
+
   for (const bank of bankAccounts) {
     keyboard.push([{ text: `🏦 ${bank.bank_name}` }]);
   }
-  
+
   keyboard.push([{ text: "🔙 Back to Menu" }]);
-  
+
   return {
     keyboard,
     resize_keyboard: true,
@@ -148,20 +148,20 @@ async function getPendingAuth(chatId: number): Promise<PendingAuth | null> {
     .select("auth_data, expires_at")
     .eq("telegram_chat_id", chatId)
     .maybeSingle();
-  
+
   if (error) {
     console.error("Error getting pending auth:", error);
     return null;
   }
-  
+
   if (!data?.auth_data) return null;
-  
+
   // Check if expired
   if (new Date(data.expires_at) < new Date()) {
     await clearPendingAuth(chatId);
     return null;
   }
-  
+
   return data.auth_data as PendingAuth;
 }
 
@@ -175,7 +175,7 @@ async function setPendingAuth(chatId: number, auth: PendingAuth): Promise<void> 
     }, {
       onConflict: "telegram_chat_id"
     });
-  
+
   if (error) {
     console.error("Error setting pending auth:", error);
   }
@@ -186,7 +186,7 @@ async function clearPendingAuth(chatId: number): Promise<void> {
     .from("telegram_pending_auth")
     .delete()
     .eq("telegram_chat_id", chatId);
-  
+
   if (error) {
     console.error("Error clearing pending auth:", error);
   }
@@ -275,7 +275,7 @@ async function getUserLink(chatId: number) {
     .eq("telegram_chat_id", chatId)
     .eq("verified", true)
     .maybeSingle();
-  
+
   return data;
 }
 
@@ -284,7 +284,7 @@ async function getUserBankAccounts(userId: string) {
     .from("bank_accounts")
     .select("id, bank_name")
     .eq("user_id", userId);
-  
+
   return data || [];
 }
 
@@ -298,7 +298,7 @@ async function saveUserState(chatId: number, userId: string, stateData: Record<s
 async function handleStart(chatId: number) {
   // Clear any pending auth
   await clearPendingAuth(chatId);
-  
+
   // Check if already verified
   const existingLink = await getUserLink(chatId);
   if (existingLink) {
@@ -308,9 +308,9 @@ async function handleStart(chatId: number) {
       .select("first_name, email")
       .eq("id", existingLink.user_id)
       .maybeSingle();
-    
+
     const name = profile?.first_name || profile?.email?.split("@")[0] || "User";
-    
+
     await sendTelegramMessage(chatId, `
 👋 <b>Welcome back, ${name}!</b>
 
@@ -320,10 +320,10 @@ Your account is already connected.
     `, { reply_markup: getMainMenuKeyboard() });
     return;
   }
-  
+
   // Set initial auth state - waiting for email (persist in database)
   await setPendingAuth(chatId, { email: "", attempts: 0, step: "email", timestamp: Date.now() });
-  
+
   await sendTelegramMessage(chatId, `
 🎉 <b>Welcome to Finance Manager Bot!</b>
 
@@ -349,15 +349,15 @@ Please enter a valid email address.
     `);
     return;
   }
-  
+
   const normalizedEmail = email.trim().toLowerCase();
-  
+
   console.log(`Checking email: ${normalizedEmail}`);
-  
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("id, email, first_name, last_name")
-    .ilike("email", normalizedEmail)
+    .ilike("email", normalizedEmail) // ilike is case-insensitive
     .maybeSingle();
 
   if (error || !profile) {
@@ -404,7 +404,7 @@ Or send /start to try with a different email.
 
   // Store email and request password (persist in database)
   await setPendingAuth(chatId, { email: normalizedEmail, attempts: 0, step: "password", timestamp: Date.now() });
-  
+
   await sendTelegramMessage(chatId, `
 ✅ <b>Email verified!</b>
 
@@ -418,7 +418,7 @@ Or send /start to try with a different email.
 
 async function handlePasswordStep(chatId: number, password: string, username?: string) {
   const pending = await getPendingAuth(chatId);
-  
+
   if (!pending || pending.step !== "password") {
     await sendTelegramMessage(chatId, `
 ❌ Session expired. Please start again.
@@ -429,7 +429,7 @@ Send /start to begin.
   }
 
   pending.attempts++;
-  
+
   if (pending.attempts > 3) {
     await clearPendingAuth(chatId);
     await sendTelegramMessage(chatId, `
@@ -494,17 +494,6 @@ You can now record transactions instantly!
   `, { reply_markup: getMainMenuKeyboard() });
 }
 
-<b>Available Options:</b>
-📥 <b>Income</b> - Record money received
-📤 <b>Expense</b> - Record money spent
-💳 <b>Loan</b> - Track borrowed/lent money
-🏦 <b>Bank Balance</b> - View account summary
-📊 <b>Report</b> - Full statement
-
-<b>Choose an option below:</b>
-  `, { reply_markup: getMainMenuKeyboard() });
-}
-
 async function handleDisconnect(chatId: number, userId: string) {
   // Delete the telegram link
   const { error } = await supabase
@@ -520,18 +509,18 @@ async function handleDisconnect(chatId: number, userId: string) {
   }
 
   await sendTelegramMessage(chatId, `
-✅ <b>Account Disconnected Successfully!</b>
+✅ <b>Account Disconnected Successfully! </b>
 
 Your Telegram has been unlinked from Finance Manager.
 
-You can connect again anytime by sending /start
+You can connect again anytime by sending / start
 
 To connect a different Telegram account:
 1. Open the bot on your other device
 2. Follow the authentication process
 
 Goodbye! 👋
-  `, { reply_markup: { remove_keyboard: true } });
+`, { reply_markup: { remove_keyboard: true } });
 }
 
 async function handleStatus(chatId: number, userId: string) {
@@ -554,26 +543,26 @@ async function handleStatus(chatId: number, userId: string) {
 
   let bankList = "";
   if (banks && banks.length > 0) {
-    bankList = banks.map(b => `  • ${b.bank_name}: ${currency} ${Number(b.current_balance).toFixed(2)}`).join("\n");
+    bankList = banks.map(b => `  • ${b.bank_name}: ${currency} ${Number(b.current_balance).toFixed(2)} `).join("\n");
   }
 
   await sendTelegramMessage(chatId, `
-📊 <b>Your Financial Summary</b>
+📊 <b>Your Financial Summary </b>
 
 ━━━━━━━━━━━━━━━━━━━━━━
-💵 <b>Total Income:</b> ${currency} ${totalIncome.toFixed(2)}
-💸 <b>Total Expenses:</b> ${currency} ${totalExpenses.toFixed(2)}
-📈 <b>Net Balance:</b> ${currency} ${balance.toFixed(2)}
+💵 <b>Total Income: </b> ${currency} ${totalIncome.toFixed(2)}
+💸 <b>Total Expenses: </b> ${currency} ${totalExpenses.toFixed(2)}
+📈 <b>Net Balance: </b> ${currency} ${balance.toFixed(2)}
 
-💳 <b>Loans Taken:</b> ${currency} ${loansTaken.toFixed(2)}
-🤝 <b>Loans Given:</b> ${currency} ${loansGiven.toFixed(2)}
+💳 <b>Loans Taken: </b> ${currency} ${loansTaken.toFixed(2)}
+🤝 <b>Loans Given: </b> ${currency} ${loansGiven.toFixed(2)}
 
-🏦 <b>Bank Balance:</b> ${currency} ${bankBalance.toFixed(2)}
+🏦 <b>Bank Balance: </b> ${currency} ${bankBalance.toFixed(2)}
 ${bankList || "  No bank accounts added"}
 
-✅ <b>Usable Balance:</b> ${currency} ${usableBalance.toFixed(2)}
+✅ <b>Usable Balance: </b> ${currency} ${usableBalance.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━━━
-  `, { reply_markup: getMainMenuKeyboard() });
+`, { reply_markup: getMainMenuKeyboard() });
 }
 
 async function handleReport(chatId: number, userId: string) {
@@ -599,17 +588,17 @@ Statement Date: ${today}
 
   let runningBalance = 0;
   const sortedTransactions = [...(transactions || [])].reverse();
-  
+
   if (sortedTransactions.length > 0) {
     report += `\n<code>Date       | Type    | Amount</code>\n`;
     report += `<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n`;
-    
+
     for (const t of sortedTransactions) {
       const date = new Date(t.transaction_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" });
       const type = t.type === "income" ? "IN " : "OUT";
       const amount = Number(t.amount);
       runningBalance += t.type === "income" ? amount : -amount;
-      
+
       report += `<code>${date.padEnd(10)} | ${type.padEnd(7)} | ${currency} ${amount.toFixed(0)}</code>\n`;
     }
     report += `\n<b>Final Balance:</b> ${currency} ${runningBalance.toFixed(2)}`;
@@ -620,7 +609,7 @@ Statement Date: ${today}
   if (loans && loans.length > 0) {
     report += `\n\n<b>💳 LOAN RECORDS</b>\n`;
     const activeLoans = loans.filter(l => l.status === "active");
-    
+
     if (activeLoans.length > 0) {
       for (const l of activeLoans) {
         const date = new Date(l.loan_date).toLocaleDateString("en-GB");
@@ -634,10 +623,10 @@ Statement Date: ${today}
 }
 
 async function saveTransaction(
-  userId: string, 
-  type: "income" | "expense", 
-  amount: number, 
-  description: string, 
+  userId: string,
+  type: "income" | "expense",
+  amount: number,
+  description: string,
   bankAccountId?: string,
   imageUrl?: string
 ) {
@@ -651,22 +640,22 @@ async function saveTransaction(
     bank_account_id: bankAccountId || null,
     image_url: imageUrl || null,
   });
-  
+
   if (error) {
     console.error("Transaction save error:", error);
     return false;
   }
-  
+
   // Update bank account balance if bank was selected
   if (bankAccountId) {
     const balanceChange = type === "income" ? amount : -amount;
-    
+
     const { data: currentBank } = await supabase
       .from("bank_accounts")
       .select("current_balance")
       .eq("id", bankAccountId)
       .single();
-    
+
     if (currentBank) {
       const newBalance = Number(currentBank.current_balance) + balanceChange;
       await supabase
@@ -675,15 +664,15 @@ async function saveTransaction(
         .eq("id", bankAccountId);
     }
   }
-  
+
   return true;
 }
 
 async function saveLoan(
-  userId: string, 
-  loanType: "take" | "give", 
-  amount: number, 
-  description: string, 
+  userId: string,
+  loanType: "take" | "give",
+  amount: number,
+  description: string,
   bankAccountId?: string,
   imageUrl?: string
 ) {
@@ -698,21 +687,21 @@ async function saveLoan(
     bank_account_id: bankAccountId || null,
     image_url: imageUrl || null,
   });
-  
+
   if (error) {
     console.error("Loan save error:", error);
     return false;
   }
-  
+
   if (bankAccountId) {
     const balanceChange = loanType === "take" ? amount : -amount;
-    
+
     const { data: currentBank } = await supabase
       .from("bank_accounts")
       .select("current_balance")
       .eq("id", bankAccountId)
       .single();
-    
+
     if (currentBank) {
       const newBalance = Number(currentBank.current_balance) + balanceChange;
       await supabase
@@ -721,7 +710,7 @@ async function saveLoan(
         .eq("id", bankAccountId);
     }
   }
-  
+
   return true;
 }
 
@@ -806,11 +795,11 @@ serve(async (req) => {
 
     // Check if user is verified
     const link = await getUserLink(chatId);
-    
+
     if (!link) {
       // Check if we have pending auth in database
       const pending = await getPendingAuth(chatId);
-      
+
       if (pending) {
         if (pending.step === "password") {
           // User is entering password
@@ -870,14 +859,14 @@ This allows you to:
     if (photo && photo.length > 0 && stateData.step === "image") {
       const largestPhoto = photo[photo.length - 1];
       const fileData = await getTelegramFile(largestPhoto.file_id);
-      
+
       if (fileData) {
         const imageUrl = await uploadImageToStorage(userId, fileData.buffer, `telegram_${Date.now()}.jpg`);
         await finalizeTransaction(chatId, userId, stateData, imageUrl || undefined);
       } else {
         await finalizeTransaction(chatId, userId, stateData);
       }
-      
+
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -914,7 +903,7 @@ This allows you to:
         const bankName = text.replace("🏦 ", "");
         const bankAccounts = await getUserBankAccounts(userId);
         const selectedBank = bankAccounts.find(b => b.bank_name === bankName);
-        
+
         if (selectedBank) {
           await saveUserState(chatId, userId, { ...stateData, step: "desc", bankAccountId: selectedBank.id, bankName: selectedBank.bank_name });
           await sendTelegramMessage(chatId, `Payment: <b>🏦 ${selectedBank.bank_name}</b>\nAmount: <b>${stateData.amount}</b>\n\nEnter a <b>description/remarks</b> (or type <code>skip</code>):`);
@@ -942,7 +931,7 @@ This allows you to:
       }
     } else if (stateData.action && stateData.step === "desc") {
       const desc = lowerText === "skip" ? "" : text;
-      
+
       // Ask for optional image
       await saveUserState(chatId, userId, { ...stateData, step: "image", description: desc });
       await sendTelegramMessage(chatId, `

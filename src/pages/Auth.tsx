@@ -8,7 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Shield } from "lucide-react";
+import { Loader2, Shield, Mail, ArrowRight } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { isValidEmail, isValidPhone, isValidName } from "@/lib/validation";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { getClientIP, getUserAgent } from "@/lib/ipUtils";
@@ -29,7 +38,12 @@ const Auth = () => {
   const [currency, setCurrency] = useState("NPR");
   const [currencySearch, setCurrencySearch] = useState("");
   const [countrySearch, setCountrySearch] = useState("");
-  const [clientIP, setClientIP] = useState("unknown");
+
+
+  // Forgot Password state
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   // Validation error states
   const [emailError, setEmailError] = useState("");
@@ -224,6 +238,38 @@ const Auth = () => {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) return;
+
+    setResetLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Password reset! Check your email for the new password.");
+        setShowResetDialog(false);
+        setResetEmail("");
+      } else {
+        toast.error(data.error || "Failed to reset password.");
+      }
+    } catch (error) {
+      console.error("Reset error:", error);
+      toast.error("Failed to reset password. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (checkingVerification) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-accent/10">
@@ -279,6 +325,41 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                </div>
+                <div className="flex justify-end">
+                  <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="link" className="px-0 font-normal text-xs text-muted-foreground">
+                        Forgot password?
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Reset Password</DialogTitle>
+                        <DialogDescription>
+                          Enter your email address and we'll send you a temporary password.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleResetPassword} className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="reset-email">Email Address</Label>
+                          <Input
+                            id="reset-email"
+                            type="email"
+                            placeholder="your@email.com"
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <Button type="submit" className="w-full" disabled={resetLoading}>
+                          {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send New Password
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
