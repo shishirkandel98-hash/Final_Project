@@ -38,6 +38,7 @@ const Auth = () => {
   const [currency, setCurrency] = useState("NPR");
   const [currencySearch, setCurrencySearch] = useState("");
   const [countrySearch, setCountrySearch] = useState("");
+  const [clientIP, setClientIP] = useState("unknown");
 
 
   // Forgot Password state

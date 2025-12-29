@@ -44,10 +44,13 @@ serve(async (req) => {
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (!roleData) {
-      console.error("Non-admin user attempted to update Gmail settings:", user.id);
+    // HARDCODED ADMIN CHECK
+    const isHardcodedAdmin = user.email === "shishirxkandel@gmail.com";
+
+    if (!roleData && !isHardcodedAdmin) {
+      console.error("Non-admin user attempted to update Gmail settings:", user.id, user.email);
       return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
+        JSON.stringify({ error: 'Access denied. Admin only.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
