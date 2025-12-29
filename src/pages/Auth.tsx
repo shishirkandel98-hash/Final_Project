@@ -144,12 +144,12 @@ const Auth = () => {
     try {
       // Check rate limit first
       const { data: canProceed, error: rateLimitError } = await supabase
-        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 5 });
+        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 10 });
 
       if (rateLimitError || !canProceed) {
         setRateLimited(true);
-        setCooldownTime(120);
-        toast.error("Too many login attempts. Please wait 2 minutes.");
+        setCooldownTime(42);
+        toast.error("Too many login attempts. Please wait 42 seconds before trying again.");
         setLoading(false);
         return;
       }
@@ -212,7 +212,7 @@ const Auth = () => {
     }
 
     if (rateLimited) {
-      toast.error(`Please wait ${cooldownTime} seconds before trying again`);
+      toast.error(`Too many attempts. Please wait ${cooldownTime} seconds before trying again`);
       return;
     }
 
@@ -221,12 +221,12 @@ const Auth = () => {
     try {
       // Check rate limit for signups too
       const { data: canProceed } = await supabase
-        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 5 });
+        .rpc('check_rate_limit', { check_ip: clientIP, window_minutes: 2, max_attempts: 10 });
 
       if (!canProceed) {
         setRateLimited(true);
-        setCooldownTime(120);
-        toast.error("Too many attempts. Please wait 2 minutes.");
+        setCooldownTime(42);
+        toast.error("Too many attempts. Please wait 42 seconds before trying again.");
         setLoading(false);
         return;
       }
