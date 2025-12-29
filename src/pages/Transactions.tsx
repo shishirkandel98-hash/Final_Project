@@ -439,7 +439,7 @@ const Transactions = () => {
                                 formatCurrency(Number(tx.amount), currency)
                               )}
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm max-w-[150px]">
+                            <TableCell className="text-xs sm:text-sm max-w-[120px] sm:max-w-[150px]">
                               {editing === tx.id ? (
                                 <Input
                                   value={editDescription}
@@ -448,10 +448,10 @@ const Transactions = () => {
                                   placeholder="Description"
                                 />
                               ) : (
-                                <span className="truncate">{tx.description || "-"}</span>
+                                <div className="truncate block" title={tx.description || "-"}>{tx.description || "-"}</div>
                               )}
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm hidden md:table-cell max-w-[150px]">
+                            <TableCell className="text-xs sm:text-sm hidden md:table-cell max-w-[120px] sm:max-w-[150px]">
                               {editing === tx.id ? (
                                 <Input
                                   value={editRemarks}
@@ -460,7 +460,7 @@ const Transactions = () => {
                                   placeholder="Remarks"
                                 />
                               ) : (
-                                <span className="truncate">{tx.remarks || "-"}</span>
+                                <div className="truncate block" title={tx.remarks || "-"}>{tx.remarks || "-"}</div>
                               )}
                             </TableCell>
                             <TableCell className="text-xs sm:text-sm hidden md:table-cell max-w-[150px]">
@@ -634,7 +634,7 @@ const Transactions = () => {
                                 formatCurrency(Number(tx.amount), currency)
                               )}
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm max-w-[150px]">
+                            <TableCell className="text-xs sm:text-sm max-w-[120px] sm:max-w-[150px]">
                               {editing === tx.id ? (
                                 <Input
                                   value={editDescription}
@@ -643,10 +643,10 @@ const Transactions = () => {
                                   placeholder="Description"
                                 />
                               ) : (
-                                <span className="truncate">{tx.description || "-"}</span>
+                                <div className="truncate block" title={tx.description || "-"}>{tx.description || "-"}</div>
                               )}
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm hidden md:table-cell max-w-[150px]">
+                            <TableCell className="text-xs sm:text-sm hidden md:table-cell max-w-[120px] sm:max-w-[150px]">
                               {editing === tx.id ? (
                                 <Input
                                   value={editRemarks}
@@ -655,7 +655,7 @@ const Transactions = () => {
                                   placeholder="Remarks"
                                 />
                               ) : (
-                                <span className="truncate">{tx.remarks || "-"}</span>
+                                <div className="truncate block" title={tx.remarks || "-"}>{tx.remarks || "-"}</div>
                               )}
                             </TableCell>
                             <TableCell className="text-xs sm:text-sm hidden md:table-cell max-w-[150px]">

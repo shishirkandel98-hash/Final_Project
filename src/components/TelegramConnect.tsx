@@ -193,12 +193,18 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">2</div>
-              <p className="text-sm">Send /start and enter your email & password when prompted</p>
+              <p className="text-sm">Click "Start" and enter your registered email</p>
             </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>• First enter your registered email address</p>
-              <p>• Then enter your password to complete verification</p>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">3</div>
+              <p className="text-sm">Enter your password to verify</p>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Use the same password you use to login on the website
+            </p>
           </div>
 
           <div className="border-t pt-4">
