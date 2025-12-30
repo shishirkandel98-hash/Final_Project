@@ -46,26 +46,44 @@ export const useRemindersData = (userId?: string) => {
   return useQuery({
     queryKey: ["reminders", userId],
     queryFn: async () => {
-      if (!userId) return [];
-
-      const { data, error } = await supabase
-        .from("reminders")
-        .select("*")
-        .eq("user_id", userId)
-        .order("reminder_date", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching reminders:", error);
-        // If table doesn't exist, return empty array to prevent crash
-        if (error.code === '42P01') {
-          return [] as Reminder[];
-        }
-        throw error;
+      if (!userId) {
+        console.log("No userId provided, returning empty reminders");
+        return [];
       }
 
-      return data as Reminder[];
+      try {
+        const { data, error } = await supabase
+          .from("reminders")
+          .select("*")
+          .eq("user_id", userId)
+          .order("reminder_date", { ascending: true });
+
+        if (error) {
+          console.error("Error fetching reminders:", error);
+          console.error("Error code:", error.code);
+          console.error("Error message:", error.message);
+          
+          // If table doesn't exist or permission denied, return empty array to prevent crash
+          if (error.code === '42P01' || error.code === '42501') {
+            console.warn("Reminders table not found or permission denied, returning empty array");
+            return [] as Reminder[];
+          }
+          
+          // For other errors, still return empty to prevent white screen
+          console.warn("Unexpected error fetching reminders, returning empty array:", error.message);
+          return [] as Reminder[];
+        }
+
+        console.log(`Loaded ${data?.length || 0} reminders for user ${userId}`);
+        return data as Reminder[];
+      } catch (err) {
+        console.error("Exception fetching reminders:", err);
+        return [] as Reminder[];
+      }
     },
     enabled: !!userId,
+    retry: 1,
+    staleTime: 30000, // Cache for 30 seconds
   });
 };
 
@@ -108,10 +126,14 @@ export const useCreateReminder = () => {
       // Show more specific error message
       if (error.code === '42501') {
         toast.error("Permission denied. Please check your account permissions.");
+      } else if (error.code === '42P01') {
+        toast.error("Reminders feature is not yet available. Please contact support.");
       } else if (error.code === '23505') {
         toast.error("This reminder already exists.");
       } else if (error.code === '23503') {
         toast.error("Invalid data provided.");
+      } else if (error.message?.includes('JWT')) {
+        toast.error("Session expired. Please refresh the page.");
       } else {
         toast.error(`Failed to create reminder: ${error.message || "Please try again."}`);
       }
@@ -198,25 +220,42 @@ export const useReminderLogs = (userId?: string) => {
   return useQuery({
     queryKey: ["reminder_logs", userId],
     queryFn: async () => {
-      if (!userId) return [];
-
-      const { data, error } = await supabase
-        .from("reminder_logs")
-        .select("*")
-        .eq("user_id", userId)
-        .order("sent_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching reminder logs:", error);
-        // If table doesn't exist, return empty array to prevent crash
-        if (error.code === '42P01') {
-          return [] as ReminderLog[];
-        }
-        throw error;
+      if (!userId) {
+        console.log("No userId provided, returning empty reminder logs");
+        return [];
       }
 
-      return data as ReminderLog[];
+      try {
+        const { data, error } = await supabase
+          .from("reminder_logs")
+          .select("*")
+          .eq("user_id", userId)
+          .order("sent_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching reminder logs:", error);
+          console.error("Error code:", error.code);
+          
+          // If table doesn't exist or permission denied, return empty array to prevent crash
+          if (error.code === '42P01' || error.code === '42501') {
+            console.warn("Reminder logs table not found or permission denied, returning empty array");
+            return [] as ReminderLog[];
+          }
+          
+          // For other errors, still return empty to prevent white screen
+          console.warn("Unexpected error fetching reminder logs, returning empty array:", error.message);
+          return [] as ReminderLog[];
+        }
+
+        console.log(`Loaded ${data?.length || 0} reminder logs for user ${userId}`);
+        return data as ReminderLog[];
+      } catch (err) {
+        console.error("Exception fetching reminder logs:", err);
+        return [] as ReminderLog[];
+      }
     },
     enabled: !!userId,
+    retry: 1,
+    staleTime: 30000, // Cache for 30 seconds
   });
 };
