@@ -15,7 +15,20 @@ import { Bell, Plus, Edit, Trash2, Clock, Calendar, Repeat, Mail, History } from
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { TIMEZONES } from "@/lib/constants";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ReminderFormData {
   title: string;
@@ -24,6 +37,7 @@ interface ReminderFormData {
   reminder_email: string;
   reminder_date: string;
   reminder_time: string;
+  timezone: string;
   is_recurring: boolean;
   recurrence_count: number;
   recurrence_interval: string;
@@ -47,6 +61,7 @@ const RemindersPanel = () => {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [isTimezoneOpen, setIsTimezoneOpen] = useState(false);
   const [formData, setFormData] = useState<ReminderFormData>({
     title: "",
     subject: "",
@@ -54,6 +69,7 @@ const RemindersPanel = () => {
     reminder_email: "",
     reminder_date: "",
     reminder_time: "",
+    timezone: "UTC+5:45", // Default to Nepal timezone
     is_recurring: false,
     recurrence_count: 1,
     recurrence_interval: "daily",
@@ -68,6 +84,7 @@ const RemindersPanel = () => {
       reminder_email: user?.email || "",
       reminder_date: "",
       reminder_time: "",
+      timezone: "UTC+5:45", // Default to Nepal timezone
       is_recurring: false,
       recurrence_count: 1,
       recurrence_interval: "daily",
@@ -127,9 +144,9 @@ const RemindersPanel = () => {
 
       // Handle time format - if it contains AM/PM, convert to 24-hour format
       let formattedTime = formData.reminder_time;
-      if (formData.reminder_time.includes(' ')) {
-        // This is likely a formatted time like "11:07 PM"
-        const timeParts = formData.reminder_time.split(' ');
+      if (formData.reminder_time.includes(' ')) {
+        // This is likely a formatted time like "11:07 PM"
+        const timeParts = formData.reminder_time.split(' ');
         if (timeParts.length === 2) {
           const [time, period] = timeParts;
           const [hours, minutes] = time.split(':').map(Number);
@@ -145,7 +162,20 @@ const RemindersPanel = () => {
       }
 
       reminderDateTime = new Date(`${formattedDate}T${formattedTime}`);
-      console.log("Parsed reminder date/time (local):", reminderDateTime);
+      console.log("Parsed reminder date/time (user timezone):", reminderDateTime);
+
+      // Convert from user's timezone to UTC
+      const timezoneMatch = formData.timezone.match(/UTC([+-])(\d{1,2}):(\d{2})/);
+      if (timezoneMatch) {
+        const sign = timezoneMatch[1] === '+' ? 1 : -1;
+        const hours = parseInt(timezoneMatch[2]);
+        const minutes = parseInt(timezoneMatch[3]);
+        const offsetMinutes = sign * (hours * 60 + minutes);
+
+        // Adjust the date by the timezone offset to get UTC
+        reminderDateTime = new Date(reminderDateTime.getTime() - (offsetMinutes * 60 * 1000));
+        console.log("Converted to UTC:", reminderDateTime.toISOString());
+      }
 
       // Check if the date is valid
       if (isNaN(reminderDateTime.getTime())) {
@@ -178,6 +208,7 @@ const RemindersPanel = () => {
         message: formData.message.trim(),
         reminder_email: formData.reminder_email.trim(),
         reminder_date: reminderDateTime.toISOString(),
+        timezone: formData.timezone,
         is_recurring: formData.is_recurring,
         recurrence_count: formData.is_recurring ? formData.recurrence_count : 1,
         recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
@@ -226,7 +257,20 @@ const RemindersPanel = () => {
     }
 
     try {
-      const reminderDateTime = new Date(`${formData.reminder_date}T${formData.reminder_time}`);
+      let reminderDateTime = new Date(`${formData.reminder_date}T${formData.reminder_time}`);
+
+      // Convert from user's timezone to UTC
+      const timezoneMatch = formData.timezone.match(/UTC([+-])(\d{1,2}):(\d{2})/);
+      if (timezoneMatch) {
+        const sign = timezoneMatch[1] === '+' ? 1 : -1;
+        const hours = parseInt(timezoneMatch[2]);
+        const minutes = parseInt(timezoneMatch[3]);
+        const offsetMinutes = sign * (hours * 60 + minutes);
+
+        // Adjust the date by the timezone offset to get UTC
+        reminderDateTime = new Date(reminderDateTime.getTime() - (offsetMinutes * 60 * 1000));
+        console.log("Converted to UTC:", reminderDateTime.toISOString());
+      }
 
       // Check if the date is valid
       if (isNaN(reminderDateTime.getTime())) {
@@ -242,6 +286,7 @@ const RemindersPanel = () => {
         message: formData.message.trim(),
         reminder_email: formData.reminder_email.trim(),
         reminder_date: reminderDateTime.toISOString(),
+        timezone: formData.timezone,
         is_recurring: formData.is_recurring,
         recurrence_count: formData.is_recurring ? formData.recurrence_count : 1,
         recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
@@ -259,7 +304,20 @@ const RemindersPanel = () => {
   };
 
   const handleEditReminder = (reminder: Reminder) => {
-    const reminderDate = new Date(reminder.reminder_date);
+    let reminderDate = new Date(reminder.reminder_date);
+
+    // Convert from UTC to user's timezone for display
+    const timezoneMatch = reminder.timezone?.match(/UTC([+-])(\d{1,2}):(\d{2})/);
+    if (timezoneMatch) {
+      const sign = timezoneMatch[1] === '+' ? -1 : 1; // Reverse the sign for conversion back
+      const hours = parseInt(timezoneMatch[2]);
+      const minutes = parseInt(timezoneMatch[3]);
+      const offsetMinutes = sign * (hours * 60 + minutes);
+
+      // Adjust the date by the timezone offset to get user's local time
+      reminderDate = new Date(reminderDate.getTime() + (offsetMinutes * 60 * 1000));
+    }
+
     setFormData({
       title: reminder.title,
       subject: reminder.subject || "",
@@ -267,6 +325,7 @@ const RemindersPanel = () => {
       reminder_email: reminder.reminder_email || user?.email || "",
       reminder_date: reminderDate.toISOString().split('T')[0],
       reminder_time: reminderDate.toTimeString().slice(0, 5),
+      timezone: reminder.timezone || "UTC+5:45",
       is_recurring: reminder.is_recurring,
       recurrence_count: reminder.recurrence_count,
       recurrence_interval: reminder.recurrence_interval || "daily",
@@ -411,6 +470,50 @@ const RemindersPanel = () => {
                       value={formData.reminder_time}
                       onChange={(e) => setFormData({ ...formData, reminder_time: e.target.value })}
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <Popover open={isTimezoneOpen} onOpenChange={setIsTimezoneOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isTimezoneOpen}
+                          className="w-full justify-between"
+                        >
+                          {formData.timezone
+                            ? TIMEZONES.find((tz) => tz.value === formData.timezone)?.label
+                            : "Select timezone..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search timezone..." />
+                          <CommandEmpty>No timezone found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {TIMEZONES.map((tz) => (
+                              <CommandItem
+                                key={tz.value}
+                                value={tz.value}
+                                onSelect={(currentValue) => {
+                                  setFormData({ ...formData, timezone: currentValue === formData.timezone ? "" : currentValue });
+                                  setIsTimezoneOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.timezone === tz.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {tz.label}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -690,6 +793,50 @@ const RemindersPanel = () => {
                     value={formData.reminder_time}
                     onChange={(e) => setFormData({ ...formData, reminder_time: e.target.value })}
                   />
+                </div>
+                <div>
+                  <Label htmlFor="edit-timezone">Timezone</Label>
+                  <Popover open={isTimezoneOpen} onOpenChange={setIsTimezoneOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isTimezoneOpen}
+                        className="w-full justify-between"
+                      >
+                        {formData.timezone
+                          ? TIMEZONES.find((tz) => tz.value === formData.timezone)?.label
+                          : "Select timezone..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search timezone..." />
+                        <CommandEmpty>No timezone found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {TIMEZONES.map((tz) => (
+                            <CommandItem
+                              key={tz.value}
+                              value={tz.value}
+                              onSelect={(currentValue) => {
+                                setFormData({ ...formData, timezone: currentValue === formData.timezone ? "" : currentValue });
+                                setIsTimezoneOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.timezone === tz.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {tz.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="flex items-center space-x-2">

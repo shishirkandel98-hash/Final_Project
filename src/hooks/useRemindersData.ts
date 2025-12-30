@@ -10,6 +10,7 @@ export interface Reminder {
   message: string;
   reminder_email: string;
   reminder_date: string;
+  timezone: string;
   is_recurring: boolean;
   recurrence_count: number;
   recurrence_interval: string | null;
@@ -28,6 +29,7 @@ interface CreateReminderData {
   message: string;
   reminder_email: string;
   reminder_date: string;
+  timezone: string;
   is_recurring?: boolean;
   recurrence_count?: number;
   recurrence_interval?: string;
@@ -104,8 +106,6 @@ export const useCreateReminder = () => {
         toast.error("Permission denied. Please check your account permissions.");
       } else if (error.code === '23505') {
         toast.error("This reminder already exists.");
-      } else if (error.code === '23503') {
-        toast.error("Invalid data provided.");
       } else if (error.code === '23503') {
         toast.error("Invalid data provided.");
       } else {

@@ -83,8 +83,8 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
   const generateVerificationCode = async () => {
     setGeneratingCode(true);
     try {
-      // Generate a random 6-digit code
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      // Generate a random 6-digit PIN
+      const pin = Math.floor(100000 + Math.random() * 900000).toString();
 
       // Remove any existing unverified links for this user
       await supabase
@@ -93,22 +93,22 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
         .eq("user_id", userId)
         .eq("verified", false);
 
-      // Insert new verification code
+      // Insert new PIN
       const { error } = await supabase
         .from("telegram_links")
         .insert({
           user_id: userId,
-          verification_code: code,
+          verification_code: pin,
           verified: false,
         });
 
       if (error) throw error;
 
-      setVerificationCode(code);
-      toast.success("Verification code generated! Copy it and paste in Telegram.");
+      setVerificationCode(pin);
+      toast.success("PIN generated! Copy it and paste in Telegram bot.");
     } catch (error: any) {
-      console.error("Error generating verification code:", error);
-      toast.error("Failed to generate verification code");
+      console.error("Error generating PIN:", error);
+      toast.error("Failed to generate PIN");
     } finally {
       setGeneratingCode(false);
     }
@@ -237,7 +237,7 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">1</div>
-              <p className="text-sm">Generate your verification code</p>
+              <p className="text-sm">Generate your PIN</p>
             </div>
             {!verificationCode ? (
               <Button onClick={generateVerificationCode} className="w-full" disabled={generatingCode}>
@@ -246,12 +246,12 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
                 ) : (
                   <RefreshCw className="w-4 h-4 mr-2" />
                 )}
-                Generate Code
+                Generate PIN
               </Button>
             ) : (
               <div className="space-y-2">
                 <div className="bg-background border rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Your verification code:</p>
+                  <p className="text-xs text-muted-foreground mb-1">Your PIN:</p>
                   <div className="flex items-center gap-2">
                     <code className="text-lg font-mono font-bold text-primary bg-muted px-2 py-1 rounded">
                       {verificationCode}
@@ -276,7 +276,7 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
                   ) : (
                     <RefreshCw className="w-3 h-3 mr-2" />
                   )}
-                  Generate New Code
+                  Generate New PIN
                 </Button>
               </div>
             )}
@@ -285,7 +285,7 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">2</div>
-              <p className="text-sm">Open our Telegram bot and enter the code</p>
+              <p className="text-sm">Open our Telegram bot and enter the PIN</p>
             </div>
             <Button onClick={openTelegramBot} className="w-full" variant="outline">
               <ExternalLink className="w-4 h-4 mr-2" />
@@ -296,10 +296,10 @@ export const TelegramConnect: React.FC<TelegramConnectProps> = ({ userId, userEm
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">3</div>
-              <p className="text-sm">Paste your verification code in Telegram</p>
+              <p className="text-sm">Paste your PIN in Telegram</p>
             </div>
             <p className="text-xs text-muted-foreground">
-              The bot will verify the code and connect your account
+              The bot will verify the PIN and connect your account
             </p>
           </div>
 

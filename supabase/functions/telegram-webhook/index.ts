@@ -332,60 +332,45 @@ I help you record financial transactions directly from Telegram.
 
 🔐 <b>Secure Account Connection</b>
 
-🔑 <b>Step 1:</b> Enter your verification code from the website:
+🔑 <b>Step 1:</b> Enter your PIN from the website:
 
-<i>Get your code from Finance Manager Dashboard → Profile → Telegram Connect</i>
+<i>Get your PIN from Finance Manager Dashboard → Profile → Telegram Connect</i>
   `);
 }
 
-async function handleCodeStep(chatId: number, code: string, username?: string) {
-  const pending = await getPendingAuth(chatId);
+async function handleCodeStep(chatId: number, pin: string, username?: string) {
+  // Verify PIN directly
+  const normalizedPin = pin.trim();
 
-  if (!pending || pending.step !== "code") {
+  if (normalizedPin.length !== 6 || !/^\d{6}$/.test(normalizedPin)) {
     await sendTelegramMessage(chatId, `
-❌ Session expired. Please start again.
+❌ <b>Invalid PIN format!</b>
 
-Send /start to begin.
+Please enter a valid 6-digit PIN from your Finance Manager dashboard.
+
+Example: 123456
     `);
     return;
   }
 
-  pending.attempts++;
-
-  if (pending.attempts > 5) {
-    await clearPendingAuth(chatId);
-    await sendTelegramMessage(chatId, `
-🚫 <b>Too many failed attempts!</b>
-
-For security, please wait a few minutes before trying again.
-
-Send /start to restart.
-    `);
-    return;
-  }
-
-  // Update attempts in database
-  await setPendingAuth(chatId, pending);
-
-  // Verify code
-  const normalizedCode = code.trim();
-
-  // Find the verification code in telegram_links table
+  // Find the PIN in telegram_links table
   const { data: linkData, error } = await supabase
     .from("telegram_links")
     .select("user_id, verification_code")
-    .eq("verification_code", normalizedCode)
+    .eq("verification_code", normalizedPin)
     .eq("verified", false)
     .maybeSingle();
 
   if (error || !linkData) {
-    const remainingAttempts = 5 - pending.attempts;
     await sendTelegramMessage(chatId, `
-❌ <b>Invalid verification code!</b>
+❌ <b>Invalid or expired PIN!</b>
 
-${remainingAttempts > 0 ? `You have <b>${remainingAttempts}</b> attempt(s) remaining.` : "No attempts remaining."}
+The PIN you entered is not valid or has expired.
 
-Please enter the correct 6-digit code from your Finance Manager dashboard:
+Please:
+1. Go to Finance Manager Dashboard → Profile → Telegram Connect
+2. Generate a new PIN
+3. Enter the new PIN here
     `);
     return;
   }
@@ -398,14 +383,12 @@ Please enter the correct 6-digit code from your Finance Manager dashboard:
     .maybeSingle();
 
   if (profileError || !profile) {
-    await sendTelegramMessage(chatId, `❌ Profile not found. Please try again.`);
-    await clearPendingAuth(chatId);
+    await sendTelegramMessage(chatId, `❌ Account not found. Please contact support.`);
     return;
   }
 
   if (!profile.approved) {
     await sendTelegramMessage(chatId, `❌ Account not approved. Please contact administrator.`);
-    await clearPendingAuth(chatId);
     return;
   }
 
@@ -428,16 +411,10 @@ Only <b>one device</b> can be connected at a time.
 To use this device instead:
 1. Go to the Finance Manager website
 2. Disconnect your Telegram from the Profile page
-3. Generate a new verification code and try again
-
-Or send /start to try with a different code.
+3. Generate a new PIN and try again
     `);
-    await clearPendingAuth(chatId);
     return;
   }
-
-  // Clear pending auth
-  await clearPendingAuth(chatId);
 
   // Update the telegram link to verified
   const { error: updateError } = await supabase
@@ -446,7 +423,7 @@ Or send /start to try with a different code.
       telegram_chat_id: chatId,
       telegram_username: username || null,
       verified: true,
-      verification_code: null, // Clear the code after use
+      verification_code: null, // Clear the PIN after use
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", profile.id)
@@ -935,26 +912,16 @@ serve(async (req) => {
     const link = await getUserLink(chatId);
 
     if (!link) {
-      // Check if we have pending auth in database
-      const pending = await getPendingAuth(chatId);
-
-      if (pending) {
-        if (pending.step === "code") {
-          // User is entering verification code
-          await handleCodeStep(chatId, text, username);
-        } else if (pending.step === "password") {
-          // Legacy support - user is entering password
-          await handlePasswordStep(chatId, text, username);
-        } else if (pending.step === "email") {
-          // Legacy support - user is entering email
-          await handleEmailStep(chatId, text, username);
-        }
+      // Check if the message looks like a 6-digit PIN
+      if (/^\d{6}$/.test(text)) {
+        // Try to verify as PIN
+        await handleCodeStep(chatId, text, username);
       } else {
-        // No pending auth and not verified - ask to start
+        // Not a PIN - ask to start
         await sendTelegramMessage(chatId, `
 🔐 <b>Authentication Required</b>
 
-Please send /start to begin the secure connection process.
+Please send /start to begin the secure connection process, then enter your 6-digit PIN from the Finance Manager dashboard.
         `);
       }
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

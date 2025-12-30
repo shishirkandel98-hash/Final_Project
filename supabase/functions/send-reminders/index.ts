@@ -15,7 +15,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sendReminderEmail(email: string, title: string, message: string, reminderDate: string, subject?: string): Promise<boolean> {
+async function sendReminderEmail(email: string, title: string, message: string, reminderDate: string, subject?: string, timezone?: string): Promise<boolean> {
   try {
     const client = new SMTPClient({
       connection: {
@@ -29,6 +29,21 @@ async function sendReminderEmail(email: string, title: string, message: string, 
       },
     });
 
+    // Convert timezone format (e.g., "UTC+5:45") to IANA format for display
+    const getTimezoneName = (tz: string) => {
+      const match = tz.match(/UTC([+-])(\d{1,2}):(\d{2})/);
+      if (match) {
+        const sign = match[1];
+        const hours = parseInt(match[2]);
+        const minutes = parseInt(match[3]);
+        const offset = sign + String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+        return `Etc/GMT${sign === '+' ? '-' : '+'}${hours}`; // Approximate IANA timezone
+      }
+      return 'UTC';
+    };
+
+    const userTimezone = timezone ? getTimezoneName(timezone) : 'UTC';
+
     const formattedDate = new Date(reminderDate).toLocaleString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -36,6 +51,7 @@ async function sendReminderEmail(email: string, title: string, message: string, 
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: userTimezone,
       timeZoneName: 'short'
     });
 
@@ -96,6 +112,7 @@ async function processReminders() {
         subject,
         message,
         reminder_date,
+        timezone,
         reminder_email,
         is_recurring,
         recurrence_count,
@@ -121,7 +138,7 @@ async function processReminders() {
         const userEmail = reminder.reminder_email || reminder.profiles.email;
 
         // Send the email
-        const emailSent = await sendReminderEmail(userEmail, reminder.title, reminder.message, reminder.reminder_date, reminder.subject);
+        const emailSent = await sendReminderEmail(userEmail, reminder.title, reminder.message, reminder.reminder_date, reminder.subject, reminder.timezone);
 
         if (emailSent) {
           // Update the reminder

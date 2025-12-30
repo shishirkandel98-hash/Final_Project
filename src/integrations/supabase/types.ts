@@ -759,6 +759,122 @@ export type Database = {
           },
         ]
       }
+      reminders: {
+        Row: {
+          created_at: string
+          email_sent_count: number
+          id: string
+          is_active: boolean
+          is_recurring: boolean
+          last_sent_at: string | null
+          message: string
+          recurrence_count: number
+          recurrence_end_date: string | null
+          recurrence_interval: string | null
+          reminder_date: string
+          reminder_email: string
+          subject: string | null
+          timezone: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_sent_count?: number
+          id?: string
+          is_active?: boolean
+          is_recurring?: boolean
+          last_sent_at?: string | null
+          message: string
+          recurrence_count?: number
+          recurrence_end_date?: string | null
+          recurrence_interval?: string | null
+          reminder_date: string
+          reminder_email: string
+          subject?: string | null
+          timezone?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_sent_count?: number
+          id?: string
+          is_active?: boolean
+          is_recurring?: boolean
+          last_sent_at?: string | null
+          message?: string
+          recurrence_count?: number
+          recurrence_end_date?: string | null
+          recurrence_interval?: string | null
+          reminder_date?: string
+          reminder_email?: string
+          subject?: string | null
+          timezone?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reminder_logs: {
+        Row: {
+          created_at: string
+          email_to: string
+          id: string
+          reminder_id: string | null
+          sent_at: string
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_to: string
+          id?: string
+          reminder_id?: string | null
+          sent_at?: string
+          status?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_to?: string
+          id?: string
+          reminder_id?: string | null
+          sent_at?: string
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_logs_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "reminders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
