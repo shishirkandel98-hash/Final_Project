@@ -105,11 +105,25 @@ const Transactions = () => {
   };
 
   const fetchData = async () => {
+    // Check if user is admin
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user?.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    const isAdmin = !!roleData;
+
     const [txResult, loanResult, notesResult, bankResult] = await Promise.all([
-      supabase.from("transactions").select("*").order("created_at", { ascending: false }),
-      supabase.from("loans").select("*").order("created_at", { ascending: false }),
-      supabase.from("notes").select("*").order("created_at", { ascending: false }),
-      supabase.from("bank_accounts").select("*"),
+      // Regular users see only their transactions, admins see all non-Telegram transactions
+      isAdmin 
+        ? supabase.from("transactions").select("*").eq("telegram_source", false).order("created_at", { ascending: false })
+        : supabase.from("transactions").select("*").eq("user_id", user?.id).order("created_at", { ascending: false }),
+      // Loans and notes are user-specific for both regular users and admins
+      supabase.from("loans").select("*").eq("user_id", user?.id).order("created_at", { ascending: false }),
+      supabase.from("notes").select("*").eq("user_id", user?.id).order("created_at", { ascending: false }),
+      supabase.from("bank_accounts").select("*").eq("user_id", user?.id),
     ]);
 
     if (txResult.data) setTransactions(txResult.data);
