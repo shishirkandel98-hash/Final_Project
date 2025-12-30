@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Shield, Mail, ArrowRight } from "lucide-react";
 
@@ -29,6 +36,11 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("");
+  const [currency, setCurrency] = useState("NPR");
   const [clientIP, setClientIP] = useState("unknown");
 
 
@@ -40,6 +52,8 @@ const Auth = () => {
   // Validation error states
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [firstNameError, setFirstNameError] = useState("");
+  const [lastNameError, setLastNameError] = useState("");
 
   // Check if user is authenticated on mount - Enhanced security
   useEffect(() => {
@@ -87,6 +101,23 @@ const Auth = () => {
       isValid = false;
     } else {
       setEmailError("");
+    }
+
+    // Validate password match for signup
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters long");
+      isValid = false;
+    } else {
+      setPasswordError("");
+    }
+
+    // Validate required fields
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("First name and last name are required");
+      isValid = false;
     }
 
     return isValid;
@@ -151,26 +182,17 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Generate random password: 6 digits + text mix
-      const digits = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
-      const textChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-      let textPart = '';
-      for (let i = 0; i < 6; i++) {
-        textPart += textChars.charAt(Math.floor(Math.random() * textChars.length));
-      }
-      const generatedPassword = digits + textPart; // 6 digits + 6 letters
-
       const { error } = await supabase.auth.signUp({
         email,
-        password: generatedPassword,
+        password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
-            first_name: '',
-            last_name: '',
-            phone: '',
-            country: '',
-            currency: 'NPR',
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone,
+            country: country,
+            currency: currency,
           },
         },
       });
@@ -186,7 +208,7 @@ const Auth = () => {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success(`Account created successfully! Your temporary password is: ${generatedPassword}. Please save it and login.`);
+        toast.success("Account created successfully! Please check your email to verify your account.");
         navigate("/");
       }
     } catch (err) {
@@ -338,6 +360,30 @@ const Auth = () => {
 
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="first-name">First Name *</Label>
+                    <Input
+                      id="first-name"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="last-name">Last Name *</Label>
+                    <Input
+                      id="last-name"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email *</Label>
                   <Input
@@ -355,7 +401,76 @@ const Auth = () => {
                   {emailError && (
                     <p className="text-xs text-destructive">{emailError}</p>
                   )}
-                  <p className="text-xs text-muted-foreground">We'll generate a secure password for you</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Contact Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+977 98XXXXXXXX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country</Label>
+                    <Select value={country} onValueChange={setCountry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Nepal">Nepal</SelectItem>
+                        <SelectItem value="India">India</SelectItem>
+                        <SelectItem value="USA">USA</SelectItem>
+                        <SelectItem value="UK">UK</SelectItem>
+                        <SelectItem value="Canada">Canada</SelectItem>
+                        <SelectItem value="Australia">Australia</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Currency *</Label>
+                    <Select value={currency} onValueChange={setCurrency}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NPR">NPR (Nepali Rupee)</SelectItem>
+                        <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                        <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                        <SelectItem value="GBP">GBP (British Pound)</SelectItem>
+                        <SelectItem value="INR">INR (Indian Rupee)</SelectItem>
+                        <SelectItem value="CAD">CAD (Canadian Dollar)</SelectItem>
+                        <SelectItem value="AUD">AUD (Australian Dollar)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password *</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <PasswordStrengthIndicator password={password} />
+                  {passwordError && (
+                    <p className="text-xs text-destructive">{passwordError}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password *</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
