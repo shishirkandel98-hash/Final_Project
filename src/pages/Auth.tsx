@@ -13,8 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Loader2, Shield, Mail, ArrowRight } from "lucide-react";
+import { Loader2, Shield, Mail, ArrowRight, Search } from "lucide-react";
 
 import {
   Dialog,
@@ -43,6 +56,10 @@ const Auth = () => {
   const [country, setCountry] = useState("");
   const [currency, setCurrency] = useState("NPR");
   const [clientIP, setClientIP] = useState("unknown");
+
+  // Combobox states
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
 
 
   // Forgot Password state
@@ -435,33 +452,92 @@ const Auth = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="country">Country</Label>
-                    <Select value={country} onValueChange={setCountry}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COUNTRIES.map((countryName) => (
-                          <SelectItem key={countryName} value={countryName}>
-                            {getCountryFlag(countryName)} {countryName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={countryOpen}
+                          className="w-full justify-between"
+                        >
+                          {country
+                            ? `${getCountryFlag(country)} ${country}`
+                            : "Select country..."}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search countries..." />
+                          <CommandList>
+                            <CommandEmpty>No country found.</CommandEmpty>
+                            <CommandGroup>
+                              {COUNTRIES.map((countryName) => (
+                                <CommandItem
+                                  key={countryName}
+                                  value={countryName}
+                                  onSelect={() => {
+                                    setCountry(countryName);
+                                    setCountryOpen(false);
+                                  }}
+                                >
+                                  <span className="flex items-center">
+                                    {getCountryFlag(countryName)} {countryName}
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="currency">Currency *</Label>
-                    <Select value={currency} onValueChange={setCurrency}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map((currencyItem) => (
-                          <SelectItem key={currencyItem.code} value={currencyItem.code}>
-                            {currencyItem.symbol} {currencyItem.code} - {currencyItem.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={currencyOpen} onOpenChange={setCurrencyOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={currencyOpen}
+                          className="w-full justify-between"
+                        >
+                          {currency
+                            ? (() => {
+                                const selectedCurrency = CURRENCIES.find(c => c.code === currency);
+                                return selectedCurrency
+                                  ? `${selectedCurrency.symbol} ${selectedCurrency.code} - ${selectedCurrency.name}`
+                                  : "Select currency...";
+                              })()
+                            : "Select currency..."}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search currencies..." />
+                          <CommandList>
+                            <CommandEmpty>No currency found.</CommandEmpty>
+                            <CommandGroup>
+                              {CURRENCIES.map((currencyItem) => (
+                                <CommandItem
+                                  key={currencyItem.code}
+                                  value={`${currencyItem.code} ${currencyItem.name}`}
+                                  onSelect={() => {
+                                    setCurrency(currencyItem.code);
+                                    setCurrencyOpen(false);
+                                  }}
+                                >
+                                  <span className="flex items-center">
+                                    {currencyItem.symbol} {currencyItem.code} - {currencyItem.name}
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
                 <div className="space-y-2">
