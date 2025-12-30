@@ -32,6 +32,7 @@ interface CreateReminderData {
   recurrence_count?: number;
   recurrence_interval?: string;
   recurrence_end_date?: string;
+  email_sent_count?: number;
 }
 
 interface UpdateReminderData extends Partial<CreateReminderData> {

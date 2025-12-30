@@ -179,6 +179,7 @@ const RemindersPanel = () => {
         recurrence_end_date: formData.is_recurring && formData.recurrence_end_date
           ? new Date(formData.recurrence_end_date).toISOString()
           : null,
+        email_sent_count: formData.is_recurring ? formData.recurrence_count : 1,
       });
 
       console.log("Reminder created successfully");
