@@ -298,6 +298,7 @@ async function saveUserState(chatId: number, userId: string, stateData: Record<s
 }
 
 async function handleStart(chatId: number) {
+  console.log(`DEBUG: handleStart called for chat ${chatId}`);
   // Clear any pending auth
   await clearPendingAuth(chatId);
 
@@ -323,6 +324,7 @@ Your account is already connected.
     return;
   }
 
+  console.log(`DEBUG: Sending PIN prompt to chat ${chatId}`);
   // Set initial auth state - waiting for verification code (persist in database)
   await setPendingAuth(chatId, { code: "", attempts: 0, step: "code", timestamp: Date.now() });
 
