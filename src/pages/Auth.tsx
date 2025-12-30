@@ -27,6 +27,7 @@ import {
 import { isValidEmail } from "@/lib/validation";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { getClientIP, getUserAgent } from "@/lib/ipUtils";
+import { COUNTRIES, CURRENCIES, getCountryFlag } from "@/lib/constants";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
@@ -117,6 +118,12 @@ const Auth = () => {
     // Validate required fields
     if (!firstName.trim() || !lastName.trim()) {
       toast.error("First name and last name are required");
+      isValid = false;
+    }
+
+    // Validate phone number (if provided)
+    if (phone && phone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
       isValid = false;
     }
 
@@ -407,10 +414,19 @@ const Auth = () => {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+977 98XXXXXXXX"
+                    placeholder="Phone number"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                      if (value.length <= 10) {
+                        setPhone(value);
+                      }
+                    }}
+                    maxLength={10}
                   />
+                  {phone && phone.length !== 10 && (
+                    <p className="text-xs text-destructive">Phone number must be exactly 10 digits</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -420,13 +436,11 @@ const Auth = () => {
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Nepal">Nepal</SelectItem>
-                        <SelectItem value="India">India</SelectItem>
-                        <SelectItem value="USA">USA</SelectItem>
-                        <SelectItem value="UK">UK</SelectItem>
-                        <SelectItem value="Canada">Canada</SelectItem>
-                        <SelectItem value="Australia">Australia</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
+                        {COUNTRIES.map((countryName) => (
+                          <SelectItem key={countryName} value={countryName}>
+                            {getCountryFlag(countryName)} {countryName}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -437,13 +451,11 @@ const Auth = () => {
                         <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="NPR">NPR (Nepali Rupee)</SelectItem>
-                        <SelectItem value="USD">USD (US Dollar)</SelectItem>
-                        <SelectItem value="EUR">EUR (Euro)</SelectItem>
-                        <SelectItem value="GBP">GBP (British Pound)</SelectItem>
-                        <SelectItem value="INR">INR (Indian Rupee)</SelectItem>
-                        <SelectItem value="CAD">CAD (Canadian Dollar)</SelectItem>
-                        <SelectItem value="AUD">AUD (Australian Dollar)</SelectItem>
+                        {CURRENCIES.map((currencyItem) => (
+                          <SelectItem key={currencyItem.code} value={currencyItem.code}>
+                            {currencyItem.symbol} {currencyItem.code} - {currencyItem.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
