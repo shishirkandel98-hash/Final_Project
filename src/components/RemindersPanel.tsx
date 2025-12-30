@@ -145,7 +145,7 @@ const RemindersPanel = () => {
       }
 
       reminderDateTime = new Date(`${formattedDate}T${formattedTime}`);
-      console.log("Parsed reminder date/time:", reminderDateTime);
+      console.log("Parsed reminder date/time (local):", reminderDateTime);
 
       // Check if the date is valid
       if (isNaN(reminderDateTime.getTime())) {
@@ -153,6 +153,11 @@ const RemindersPanel = () => {
         toast.error("Please enter a valid date and time");
         return;
       }
+
+      // Since users enter time in their local timezone, we need to ensure it's stored correctly
+      // The Date constructor treats the string as local time, and toISOString() converts to UTC
+      // This should work correctly for the user's timezone
+      console.log("Reminder time in UTC:", reminderDateTime.toISOString());
 
       // Allow reminders at least 30 seconds in the future (very lenient for testing)
       const thirtySecondsFromNow = new Date(Date.now() + 30 * 1000);

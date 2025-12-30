@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     await client.send({
-      from: "kpoliking001@gmail.com",
+      from: `"Finance Manager" <kpoliking001@gmail.com>`,
       to: userEmail,
       subject: `Finance Report - ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Summary`,
       html: emailHtml,
