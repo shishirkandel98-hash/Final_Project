@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.rate-limit-auth]
 verify_jwt = false
+
+[functions.password-reset]
+verify_jwt = false

@@ -270,10 +270,11 @@ const Auth = () => {
     setResetLoading(true);
     try {
       // For password reset, we don't need authentication - it's public
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-password`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
           action: 'reset_password_by_email',
