@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Bell, Plus, Edit, Trash2, Clock, Calendar, Repeat, Mail, History } from "lucide-react";
+import { Bell, Plus, Edit, Trash2, Clock, Calendar, Repeat, Mail, History, ChevronsUpDown, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { TIMEZONES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import {
   Command,
   CommandEmpty,
@@ -482,7 +483,7 @@ const RemindersPanel = () => {
                           className="w-full justify-between"
                         >
                           {formData.timezone
-                            ? TIMEZONES.find((tz) => tz.value === formData.timezone)?.label
+                            ? TIMEZONES.find((tz) => tz.utcOffset === formData.timezone)?.country + " (" + TIMEZONES.find((tz) => tz.utcOffset === formData.timezone)?.utcOffset + ")"
                             : "Select timezone..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -494,8 +495,8 @@ const RemindersPanel = () => {
                           <CommandGroup className="max-h-64 overflow-auto">
                             {TIMEZONES.map((tz) => (
                               <CommandItem
-                                key={tz.value}
-                                value={tz.value}
+                                key={tz.utcOffset}
+                                value={tz.utcOffset}
                                 onSelect={(currentValue) => {
                                   setFormData({ ...formData, timezone: currentValue === formData.timezone ? "" : currentValue });
                                   setIsTimezoneOpen(false);
@@ -504,10 +505,10 @@ const RemindersPanel = () => {
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    formData.timezone === tz.value ? "opacity-100" : "opacity-0"
+                                    formData.timezone === tz.utcOffset ? "opacity-100" : "opacity-0"
                                   )}
                                 />
-                                {tz.label}
+                                {tz.country} ({tz.utcOffset})
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -805,7 +806,7 @@ const RemindersPanel = () => {
                         className="w-full justify-between"
                       >
                         {formData.timezone
-                          ? TIMEZONES.find((tz) => tz.value === formData.timezone)?.label
+                            ? TIMEZONES.find((tz) => tz.utcOffset === formData.timezone)?.country + " (" + TIMEZONES.find((tz) => tz.utcOffset === formData.timezone)?.utcOffset + ")"
                           : "Select timezone..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -817,8 +818,8 @@ const RemindersPanel = () => {
                         <CommandGroup className="max-h-64 overflow-auto">
                           {TIMEZONES.map((tz) => (
                             <CommandItem
-                              key={tz.value}
-                              value={tz.value}
+                              key={tz.utcOffset}
+                              value={tz.utcOffset}
                               onSelect={(currentValue) => {
                                 setFormData({ ...formData, timezone: currentValue === formData.timezone ? "" : currentValue });
                                 setIsTimezoneOpen(false);
@@ -827,10 +828,10 @@ const RemindersPanel = () => {
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  formData.timezone === tz.value ? "opacity-100" : "opacity-0"
+                                  formData.timezone === tz.utcOffset ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {tz.label}
+                              {tz.country} ({tz.utcOffset})
                             </CommandItem>
                           ))}
                         </CommandGroup>
