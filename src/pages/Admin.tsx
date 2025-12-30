@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Shield, Search, Eye, Trash2, TrendingUp, TrendingDown, CreditCard, Building2, Globe, Monitor, Key } from "lucide-react";
+import { ArrowLeft, Loader2, Shield, Search, Eye, Trash2, TrendingUp, TrendingDown, CreditCard, Building2, Globe, Monitor, Key, Settings, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProfileUser {
@@ -83,6 +83,9 @@ const Admin = () => {
   const [userSessions, setUserSessions] = useState<UserSession[]>([]);
   const [loadingUserData, setLoadingUserData] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
+  const [telegramToken, setTelegramToken] = useState<string>("");
+  const [saveTokenLoading, setSaveTokenLoading] = useState(false);
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -321,6 +324,51 @@ const Admin = () => {
     }
   };
 
+  const handleSaveTelegramToken = async () => {
+    if (!telegramToken.trim()) {
+      toast.error("Please enter a Telegram bot token");
+      return;
+    }
+
+    setSaveTokenLoading(true);
+    try {
+      // Save token to Supabase secrets or environment
+      // For now, we'll store it in an admin settings table
+      const { error } = await supabase
+        .from("admin_settings")
+        .upsert({
+          setting_key: "telegram_bot_token",
+          setting_value: telegramToken.trim(),
+          updated_by: user?.id,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      // Log the action
+      await supabase.from("audit_logs").insert([{
+        user_id: user?.id,
+        table_name: "admin_settings",
+        action: "update_telegram_token",
+        record_id: "telegram_bot_token",
+        new_values: { setting_key: "telegram_bot_token" },
+      }]);
+
+      toast.success("Telegram bot token updated successfully!");
+    } catch (error: any) {
+      console.error("Error saving token:", error);
+      toast.error("Failed to save token: " + (error.message || "Unknown error"));
+    } finally {
+      setSaveTokenLoading(false);
+    }
+  };
+
+  const handleCopyToken = () => {
+    navigator.clipboard.writeText(telegramToken);
+    setCopiedToClipboard(true);
+    setTimeout(() => setCopiedToClipboard(false), 2000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -398,6 +446,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="security" className="text-xs sm:text-sm">
               Security
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs sm:text-sm">
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -798,6 +849,110 @@ const Admin = () => {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Admin Settings
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Configure system settings and integrations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 p-3 sm:p-6">
+                {/* Telegram Bot Token Section */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-sm">Telegram Bot Token</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Update the Telegram bot token used for authentication and notifications
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Bot Token</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        placeholder="Paste your Telegram bot token here..."
+                        value={telegramToken}
+                        onChange={(e) => setTelegramToken(e.target.value)}
+                        className="text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCopyToken}
+                        disabled={!telegramToken}
+                        title="Copy token to clipboard"
+                      >
+                        {copiedToClipboard ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                    <p className="text-xs text-blue-900">
+                      <strong>How to get your token:</strong>
+                    </p>
+                    <ol className="text-xs text-blue-900 mt-2 list-decimal list-inside space-y-1">
+                      <li>Open Telegram and search for @BotFather</li>
+                      <li>Send <code>/start</code> command</li>
+                      <li>Send <code>/mybots</code> and select your bot</li>
+                      <li>Select "API Token"</li>
+                      <li>Copy the token and paste it here</li>
+                    </ol>
+                  </div>
+
+                  <Button
+                    onClick={handleSaveTelegramToken}
+                    disabled={saveTokenLoading || !telegramToken.trim()}
+                    className="w-full"
+                  >
+                    {saveTokenLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Key className="w-4 h-4 mr-2" />
+                        Update Token
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <p className="text-xs text-yellow-900">
+                      <strong>⚠️ Important:</strong> Regenerate this token in BotFather immediately after updating it here to prevent unauthorized access.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Additional Settings */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <h3 className="font-semibold text-sm">Integration Status</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Telegram Bot</p>
+                      <Badge className="mt-1">Active</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Gmail Settings</p>
+                      <Badge className="mt-1">Configured</Badge>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

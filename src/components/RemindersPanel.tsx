@@ -483,7 +483,10 @@ const RemindersPanel = () => {
                           className="w-full justify-between"
                         >
                           {formData.timezone
-                            ? TIMEZONES.find((tz) => tz.utcOffset === formData.timezone)?.country + " (" + TIMEZONES.find((tz) => tz.utcOffset === formData.timezone)?.utcOffset + ")"
+                            ? (() => {
+                                const found = TIMEZONES.find((tz) => tz.utcOffset === formData.timezone);
+                                return found ? `${found.country} (${found.utcOffset})` : "Select timezone...";
+                              })()
                             : "Select timezone..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
