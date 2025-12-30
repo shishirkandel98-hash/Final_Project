@@ -56,6 +56,10 @@ export const useRemindersData = (userId?: string) => {
 
       if (error) {
         console.error("Error fetching reminders:", error);
+        // If table doesn't exist, return empty array to prevent crash
+        if (error.code === '42P01') {
+          return [] as Reminder[];
+        }
         throw error;
       }
 
@@ -204,6 +208,10 @@ export const useReminderLogs = (userId?: string) => {
 
       if (error) {
         console.error("Error fetching reminder logs:", error);
+        // If table doesn't exist, return empty array to prevent crash
+        if (error.code === '42P01') {
+          return [] as ReminderLog[];
+        }
         throw error;
       }
 
