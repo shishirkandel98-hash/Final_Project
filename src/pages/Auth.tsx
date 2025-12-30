@@ -210,7 +210,7 @@ const Auth = () => {
       const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
       const redirectUrl = `${siteUrl}/`;
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -236,8 +236,18 @@ const Auth = () => {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success("Account created successfully! Please check your email to verify your account.");
-        navigate("/");
+        // Check if user is automatically signed in (when email confirmation is disabled)
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // User is signed in immediately
+          toast.success("Account created and signed in successfully!");
+          navigate("/dashboard", { replace: true });
+        } else {
+          // Email confirmation required
+          toast.success("Account created successfully! Please check your email to verify your account.");
+          navigate("/");
+        }
       }
     } catch (err) {
       toast.error("An error occurred. Please try again.");
